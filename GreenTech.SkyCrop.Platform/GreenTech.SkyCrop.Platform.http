@@ -1,0 +1,6 @@
+@GreenTech.SkyCrop.Platform_HostAddress = http://localhost:5231
+
+GET {{GreenTech.SkyCrop.Platform_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -2,11 +2,11 @@
 
 public record ReportTitle
 {
-    public string Name { get; }
+    public string Value { get; }
     
-    public ReportTitle(string name)
+    public ReportTitle(string value)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        Name = name;
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        Value = value;
     }
 };

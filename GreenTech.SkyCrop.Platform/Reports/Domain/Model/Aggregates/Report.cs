@@ -16,7 +16,7 @@ public partial class Report : AggregateRoot
     public DroneName GeneratedBy { get; private set; }
     public ReportType Type { get; private set; }
     public ReportMetrics ReportMetrics { get; private set; }
-    public NdviEvolutionId NdviEvolutionId { get; private set; }
+    public List<NdviEvolutionItem> NdviEvolution { get; private set; }
     public PerformanceId PerformanceId { get; private set; }
     
     public Report(CreateReportCommand command)
@@ -29,7 +29,7 @@ public partial class Report : AggregateRoot
         GeneratedBy = new DroneName(command.GeneratedBy);
         if (Enum.TryParse<ReportType>(command.Type, true, out var type)) Type = type;
         ReportMetrics = new ReportMetrics(command.Flights, command.Alerts, command.AverageNdvi, command.AreaHectares);
-        NdviEvolutionId = new NdviEvolutionId(command.NdviEvolutionId);
+        NdviEvolution = command.NdviEvolution.Select(item => new NdviEvolutionItem(item)).ToList();
         PerformanceId = new PerformanceId(command.PerformanceId);
         
         AddDomainEvent(() => new ReportCreatedEvent(Id));

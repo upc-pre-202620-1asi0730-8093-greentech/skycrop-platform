@@ -13,6 +13,7 @@ public record CreateReportCommand(
     float AverageNdvi,
     float AreaHectares,
     List<Dictionary<string, object>> NdviEvolution,
-    int PerformanceId
+    List<Dictionary<string, object>> Performance
+    
 );
 

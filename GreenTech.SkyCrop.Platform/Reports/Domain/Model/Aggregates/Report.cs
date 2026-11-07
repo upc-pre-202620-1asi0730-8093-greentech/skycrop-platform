@@ -17,7 +17,7 @@ public partial class Report : AggregateRoot
     public ReportType Type { get; private set; }
     public ReportMetrics ReportMetrics { get; private set; }
     public List<NdviEvolutionItem> NdviEvolution { get; private set; }
-    public PerformanceId PerformanceId { get; private set; }
+    public List<ReportPerformanceItem> Performance { get; private set; }
     
     public Report(CreateReportCommand command)
     {
@@ -30,7 +30,7 @@ public partial class Report : AggregateRoot
         if (Enum.TryParse<ReportType>(command.Type, true, out var type)) Type = type;
         ReportMetrics = new ReportMetrics(command.Flights, command.Alerts, command.AverageNdvi, command.AreaHectares);
         NdviEvolution = command.NdviEvolution.Select(item => new NdviEvolutionItem(item)).ToList();
-        PerformanceId = new PerformanceId(command.PerformanceId);
+        Performance = command.Performance.Select(item => new ReportPerformanceItem(item)).ToList();
         
         AddDomainEvent(() => new ReportCreatedEvent(Id));
     }

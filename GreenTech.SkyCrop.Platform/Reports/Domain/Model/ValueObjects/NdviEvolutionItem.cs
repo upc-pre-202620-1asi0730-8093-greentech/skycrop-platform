@@ -2,8 +2,8 @@
 
 public record NdviEvolutionItem
 {
-    public DateTimeOffset Date { get; private set; }
-    public float Value { get; private set; }
+    public DateTimeOffset Date { get; }
+    public float Value { get; }
 
     public NdviEvolutionItem(Dictionary<string, object> item)
     {

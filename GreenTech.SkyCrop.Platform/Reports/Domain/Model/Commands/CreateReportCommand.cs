@@ -8,7 +8,10 @@ public record CreateReportCommand(
     string Owner,
     string GeneratedBy,
     string Type,
-    int MetricsId,
+    int Flights,
+    int Alerts,
+    float AverageNdvi,
+    float AreaHectares,
     int NdviEvolutionId,
     int PerformanceId
 );

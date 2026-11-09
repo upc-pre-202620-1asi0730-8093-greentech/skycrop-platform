@@ -1,0 +1,70 @@
+{
+  "drones": [
+    {
+      "name": "Drone",
+      "model": "DJI Agras T30",
+      "serialNumber": "SK-391-492",
+      "camera": "48 MP FR",
+      "autonomyMinutes": 30,
+      "battery": 100,
+      "status": "AVAILABLE",
+      "imageUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSIlGZFvMjdbqgYCmWTs1ZuHmmX1eG-1P7cPKrYxdNuFQ&s=10",
+      "createdAt": "2026-10-09T08:56:43.386Z",
+      "id": 1
+    },
+    {
+      "name": "Drone 1",
+      "model": "DJI",
+      "serialNumber": "4154462",
+      "camera": "48 MP FR",
+      "autonomyMinutes": 30,
+      "battery": 100,
+      "status": "DISCONNECTED",
+      "imageUrl": "",
+      "createdAt": "2026-10-09T11:04:20.771Z",
+      "id": 2
+    }
+  ],
+  "flightRoutes": [
+    {
+      "name": "Route 1",
+      "plotId": 3,
+      "altitudeMeters": 30,
+      "speedMetersPerSecond": 4.4,
+      "waypoints": [
+        {
+          "latitude": -11.380296,
+          "longitude": -73.922818
+        },
+        {
+          "latitude": -11.388121,
+          "longitude": -73.920757
+        },
+        {
+          "latitude": -11.380969,
+          "longitude": -73.902556
+        },
+        {
+          "latitude": -11.375584,
+          "longitude": -73.91097
+        },
+        {
+          "latitude": -11.380296,
+          "longitude": -73.922818
+        }
+      ],
+      "id": 1
+    }
+  ],
+  "flights": [
+    {
+      "droneId": 1,
+      "flightRouteId": 1,
+      "plotId": 3,
+      "status": "PLANNED",
+      "createdAt": "2026-10-30T02:19:15.521Z",
+      "id": 1
+    }
+  ],
+  "aerialImages": []
+}

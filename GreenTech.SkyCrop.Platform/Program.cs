@@ -1,4 +1,5 @@
 using GreenTech.SkyCrop.Platform.Drones.Infrastructure.Configuration;
+using GreenTech.SkyCrop.Platform.Plots.Infrastructure.Configuration;
 using GreenTech.SkyCrop.Platform.Resources.Errors;
 using GreenTech.SkyCrop.Platform.Resources.Shared;
 using GreenTech.SkyCrop.Platform.Shared.Domain.Repositories;
@@ -78,6 +79,9 @@ builder.Services.AddScoped<DispatchDomainEventsInterceptor>();
 
 // Drones Bounded Context
 builder.Services.AddDronesContext();
+
+// Plots Bounded Context
+builder.Services.AddPlotsContext();
 
 // Mediator Configuration
 builder.Services.AddScoped(typeof(ICommandPipelineBehavior<>), typeof(LoggingCommandBehavior<>));

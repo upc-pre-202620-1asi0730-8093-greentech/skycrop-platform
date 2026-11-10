@@ -29,9 +29,19 @@ public partial class Report : AggregateRoot
         GeneratedBy = new DroneName(command.GeneratedBy);
         if (Enum.TryParse<ReportType>(command.Type, true, out var type)) Type = type;
         ReportMetrics = new ReportMetrics(command.Flights, command.Alerts, command.AverageNdvi, command.AreaHectares);
-        NdviEvolution = command.NdviEvolution.Select(item => new NdviEvolutionItem(item)).ToList();
-        Performance = command.Performance.Select(item => new ReportPerformanceItem(item)).ToList();
+        NdviEvolution = command.NdviEvolution.Select(item => NdviEvolutionItem.FromDictionary(item)).ToList();
+        Performance = command.Performance.Select(item => ReportPerformanceItem.FromDictionary(item)).ToList();
         
         AddDomainEvent(() => new ReportCreatedEvent(Id));
+    }
+
+    public Report()
+    {
+        Title = null!;
+        Owner = null!;
+        GeneratedBy = null!;
+        ReportMetrics = null!;
+        NdviEvolution = null!;
+        Performance = null!;
     }
 }

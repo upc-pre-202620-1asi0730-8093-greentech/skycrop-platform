@@ -4,19 +4,26 @@ public record NdviEvolutionItem
 {
     public DateTimeOffset Date { get; }
     public float Value { get; }
-
-    public NdviEvolutionItem(Dictionary<string, object> item)
+    public NdviEvolutionItem(DateTimeOffset date, float value)
     {
-        if (!item.TryGetValue("date", out var date))
-            throw new ArgumentException("Date not found");
-        
-        if (!item.TryGetValue("value", out var value))
-            throw new ArgumentException("Value not found");
-
-        Date = DateTimeOffset.Parse(date.ToString()!);
-        Value = Convert.ToSingle(value);
-        
         if (float.IsNaN(Value) || float.IsInfinity(Value) || Value < -1 || Value > 1)
             throw new ArgumentOutOfRangeException(nameof(Value), @"Value must be between -1 and 1.");
+        
+        Date = date;
+        Value = value;
     }
-};
+
+    public static NdviEvolutionItem FromDictionary(Dictionary<string, object> item)
+    {
+        if (!item.TryGetValue("date", out var dateObj))
+            throw new ArgumentException("Date not found");
+        
+        if (!item.TryGetValue("value", out var valueObj))
+            throw new ArgumentException("Value not found");
+
+        var parsedDate = DateTimeOffset.Parse(dateObj.ToString()!);
+        var parsedValue = Convert.ToSingle(valueObj);
+        
+        return new NdviEvolutionItem(parsedDate, parsedValue);
+    }
+}

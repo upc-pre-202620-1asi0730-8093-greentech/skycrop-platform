@@ -12,6 +12,13 @@ using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFramewo
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Pipeline.Middleware.Components;
 using Cortex.Mediator.Commands;
 using Cortex.Mediator.DependencyInjection;
+using GreenTech.SkyCrop.Platform.Reports.Application.CommandServices;
+using GreenTech.SkyCrop.Platform.Reports.Application.Internal.CommandServices;
+using GreenTech.SkyCrop.Platform.Reports.Application.Internal.QueryServices;
+using GreenTech.SkyCrop.Platform.Reports.Application.QueryServices;
+using GreenTech.SkyCrop.Platform.Reports.Domain.Repositories;
+using GreenTech.SkyCrop.Platform.Reports.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using GreenTech.SkyCrop.Platform.Reports.Resources;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using Scalar.AspNetCore;
@@ -61,6 +68,7 @@ builder.Services.AddLocalization(options => options.ResourcesPath = "Resources")
 // Explicitly register IStringLocalizer for ErrorMessages and Commons
 builder.Services.AddSingleton<IStringLocalizer<ErrorMessages>, StringLocalizer<ErrorMessages>>();
 builder.Services.AddSingleton<IStringLocalizer<CommonMessages>, StringLocalizer<CommonMessages>>();
+builder.Services.AddSingleton<IStringLocalizer<ReportsMessages>, StringLocalizer<ReportsMessages>>();
 
 // Register the custom ProblemDetailsFactory
 builder.Services.AddSingleton<ProblemDetailsFactory>();
@@ -77,6 +85,10 @@ builder.Services.AddOpenApi(options =>
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<DispatchDomainEventsInterceptor>();
 
+//Reports Bounded Context
+builder.Services.AddScoped<IReportRepository, ReportRepository>();
+builder.Services.AddScoped<IReportCommandService, ReportCommandService>();
+builder.Services.AddScoped<IReportQueryService, ReportQueryService>();
 // Drones Bounded Context
 builder.Services.AddDronesContext();
 

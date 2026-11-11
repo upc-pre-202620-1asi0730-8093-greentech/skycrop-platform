@@ -287,7 +287,7 @@ namespace GreenTech.SkyCrop.Platform.Migrations
                         .HasColumnType("varchar(120)")
                         .HasColumnName("soil_type");
 
-                    b.Property<DateOnly>("SowingDate")
+                    b.Property<DateTime>("SowingDate")
                         .HasColumnType("date")
                         .HasColumnName("sowing_date");
 
@@ -305,6 +305,65 @@ namespace GreenTech.SkyCrop.Platform.Migrations
                         .HasName("p_k_agricultural_plots");
 
                     b.ToTable("agricultural_plots", (string)null);
+                });
+
+            modelBuilder.Entity("GreenTech.SkyCrop.Platform.Reports.Domain.Model.Aggregates.Report", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CreatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("generated_at");
+
+                    b.Property<string>("GeneratedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("generated_by");
+
+                    b.Property<string>("Owner")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)")
+                        .HasColumnName("owner");
+
+                    b.Property<string>("Season")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("season");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int")
+                        .HasColumnName("year");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_reports");
+
+                    b.ToTable("reports", (string)null);
                 });
 
             modelBuilder.Entity("GreenTech.SkyCrop.Platform.Drones.Domain.Model.Aggregates.Flight", b =>
@@ -394,6 +453,104 @@ namespace GreenTech.SkyCrop.Platform.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("f_k_aerial_images_flights_flight_id");
+                });
+
+            modelBuilder.Entity("GreenTech.SkyCrop.Platform.Reports.Domain.Model.Aggregates.Report", b =>
+                {
+                    b.OwnsOne("GreenTech.SkyCrop.Platform.Reports.Domain.Model.ValueObjects.ReportMetrics", "ReportMetrics", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .HasColumnType("int")
+                                .HasColumnName("id");
+
+                            b1.Property<int>("Alerts")
+                                .HasColumnType("int")
+                                .HasColumnName("alerts");
+
+                            b1.Property<float>("AreaHectares")
+                                .HasColumnType("float")
+                                .HasColumnName("area_hectares");
+
+                            b1.Property<float>("AverageNdvi")
+                                .HasColumnType("float")
+                                .HasColumnName("average_ndvi");
+
+                            b1.Property<int>("Flights")
+                                .HasColumnType("int")
+                                .HasColumnName("flights");
+
+                            b1.HasKey("Id")
+                                .HasName("p_k_reports");
+
+                            b1.ToTable("reports");
+
+                            b1.WithOwner()
+                                .HasForeignKey("Id")
+                                .HasConstraintName("f_k_reports_reports_id");
+                        });
+
+                    b.OwnsMany("GreenTech.SkyCrop.Platform.Reports.Domain.Model.ValueObjects.NdviEvolutionItem", "NdviEvolution", b1 =>
+                        {
+                            b1.Property<int>("ReportId")
+                                .HasColumnType("int")
+                                .HasColumnName("report_id");
+
+                            b1.Property<DateTime>("Date")
+                                .HasColumnType("datetime(6)")
+                                .HasColumnName("date");
+
+                            b1.Property<float>("Value")
+                                .HasColumnType("float")
+                                .HasColumnName("value");
+
+                            b1.HasKey("ReportId", "Date")
+                                .HasName("p_k_ndvi_evolution_items");
+
+                            b1.ToTable("ndvi_evolution_items", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("ReportId")
+                                .HasConstraintName("f_k_ndvi_evolution_items_reports_report_id");
+                        });
+
+                    b.OwnsMany("GreenTech.SkyCrop.Platform.Reports.Domain.Model.ValueObjects.ReportPerformanceItem", "Performance", b1 =>
+                        {
+                            b1.Property<int>("ReportId")
+                                .HasColumnType("int")
+                                .HasColumnName("report_id");
+
+                            b1.Property<int>("PlotId")
+                                .HasColumnType("int")
+                                .HasColumnName("plot_id");
+
+                            b1.Property<int>("Alerts")
+                                .HasColumnType("int")
+                                .HasColumnName("alerts");
+
+                            b1.Property<float>("AverageNdvi")
+                                .HasColumnType("float")
+                                .HasColumnName("average_ndvi");
+
+                            b1.Property<int>("Flights")
+                                .HasColumnType("int")
+                                .HasColumnName("flights");
+
+                            b1.HasKey("ReportId", "PlotId")
+                                .HasName("p_k_report_performance_items");
+
+                            b1.ToTable("report_performance_items", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("ReportId")
+                                .HasConstraintName("f_k_report_performance_items_reports_report_id");
+                        });
+
+                    b.Navigation("NdviEvolution");
+
+                    b.Navigation("Performance");
+
+                    b.Navigation("ReportMetrics")
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

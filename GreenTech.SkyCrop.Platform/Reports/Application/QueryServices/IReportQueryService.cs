@@ -9,7 +9,12 @@ namespace GreenTech.SkyCrop.Platform.Reports.Application.QueryServices;
 public interface IReportQueryService
 {
     /// <summary>
-    /// Handles the Get Report By Id query
+    /// Handles the Get Report By ID query
     /// </summary>
     Task<Report?> Handle(GetReportByIdQuery query, CancellationToken cancellationToken);
+    
+    /// <summary>
+    /// Handles the Get All Reports query
+    /// </summary>
+    Task<IEnumerable<Report>> Handle(GetAllReportsQuery query, CancellationToken cancellationToken);
 }

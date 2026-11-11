@@ -69,5 +69,21 @@ public sealed class ReportsController(
                 ReportResourceFromEntityAssembler.ToResourceFromEntity(createdReport))
         );
     }
+
+
+    [HttpGet]
+    [EndpointSummary("Get all reports")]
+    [EndpointDescription("Get all registered reports")]
+    [ProducesResponseType(typeof(IEnumerable<ReportResource>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAllReports(
+        [FromHeader(Name = "Accept-Language")] string? acceptLanguage,
+        CancellationToken cancellationToken
+    )
+    {
+        var getAllReportsQuery = new GetAllReportsQuery();
+        var reports = await reportQueryService.Handle(getAllReportsQuery, cancellationToken);
+        var reportResources = reports.Select(ReportResourceFromEntityAssembler.ToResourceFromEntity);
+        return Ok(reportResources);
+    }
 }
 

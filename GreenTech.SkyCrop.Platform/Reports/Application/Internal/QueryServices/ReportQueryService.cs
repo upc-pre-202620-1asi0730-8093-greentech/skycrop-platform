@@ -17,4 +17,10 @@ public class ReportQueryService(IReportRepository reportRepository) : IReportQue
     {
         return await reportRepository.FindReportByIdAsNoTrackingAsync(query.ReportId, cancellationToken);
     }
+
+    ///<inheritdoc/>
+    public async Task<IEnumerable<Report>> Handle(GetAllReportsQuery query, CancellationToken cancellationToken)
+    {
+        return await reportRepository.ListAsNoTrackingAsync(cancellationToken);
+    }
 }

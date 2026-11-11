@@ -1,4 +1,6 @@
 ﻿using GreenTech.SkyCrop.Platform.Reports.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
+using GreenTech.SkyCrop.Platform.Plots.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
+using GreenTech.SkyCrop.Platform.Drones.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Interceptors;
 using Microsoft.EntityFrameworkCore;
@@ -6,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
 
 /// <summary>
-///     Application database context for the Learning Center Platform
+///     Application database context for the SkyCrop Platform
 /// </summary>
 /// <param name="options">
 ///     The options for the database context
@@ -27,6 +29,8 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
         
         builder.ApplyReportsConfiguration();
 
+        builder.ApplyDronesConfiguration();
+        builder.ApplyPlotsConfiguration();
         builder.UseSnakeCaseNamingConvention();
     }
 }

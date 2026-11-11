@@ -2,6 +2,10 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GreenTech.SkyCrop.Platform", "GreenTech.SkyCrop.Platform\GreenTech.SkyCrop.Platform.csproj", "{9A6C87DC-11B0-4A34-8BC8-C9445E15FB43}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SkyCrop.Drones.Checks", "tests\SkyCrop.Drones.Checks\SkyCrop.Drones.Checks.csproj", "{82154535-4F88-40BD-9A68-14C126F6F88C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +16,15 @@ Global
 		{9A6C87DC-11B0-4A34-8BC8-C9445E15FB43}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9A6C87DC-11B0-4A34-8BC8-C9445E15FB43}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9A6C87DC-11B0-4A34-8BC8-C9445E15FB43}.Release|Any CPU.Build.0 = Release|Any CPU
+		{82154535-4F88-40BD-9A68-14C126F6F88C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82154535-4F88-40BD-9A68-14C126F6F88C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82154535-4F88-40BD-9A68-14C126F6F88C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82154535-4F88-40BD-9A68-14C126F6F88C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{82154535-4F88-40BD-9A68-14C126F6F88C} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

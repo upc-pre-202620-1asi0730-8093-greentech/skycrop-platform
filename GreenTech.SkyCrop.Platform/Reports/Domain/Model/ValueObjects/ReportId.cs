@@ -2,6 +2,10 @@
 
 namespace GreenTech.SkyCrop.Platform.Reports.Domain.Model.ValueObjects;
 
+/// <summary>
+/// Represents the identifier of a report in the Reports bounded context
+/// </summary>
+/// <param name="Value">The value of the identifier</param>
 public readonly record struct ReportId(int Value) : IEntityId<int>
 {
     public static implicit operator int(ReportId id) => id.Value;

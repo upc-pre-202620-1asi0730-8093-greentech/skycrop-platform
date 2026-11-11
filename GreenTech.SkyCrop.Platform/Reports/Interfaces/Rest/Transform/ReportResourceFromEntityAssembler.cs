@@ -6,6 +6,9 @@ namespace GreenTech.SkyCrop.Platform.Reports.Interfaces.Rest.Transform;
 public static class ReportResourceFromEntityAssembler
 {
 
+    /// <summary>
+    /// Assembler responsible for transforming a Report aggregate into a ReportResource
+    /// </summary>
     public static ReportResource ToResourceFromEntity(Report entity)
     {
         ArgumentNullException.ThrowIfNull(entity);

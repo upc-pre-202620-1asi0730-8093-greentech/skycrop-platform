@@ -1,5 +1,8 @@
 ﻿namespace GreenTech.SkyCrop.Platform.Reports.Domain.Model.ValueObjects;
 
+/// <summary>
+/// Date and value object representing the average NDVI at a specific point in time
+/// </summary>
 public record NdviEvolutionItem
 {
     public DateTimeOffset Date { get; }

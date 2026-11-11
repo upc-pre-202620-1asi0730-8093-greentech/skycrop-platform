@@ -1,5 +1,8 @@
 ﻿namespace GreenTech.SkyCrop.Platform.Reports.Domain.Model.ValueObjects;
 
+/// <summary>
+/// Represents the performance metrics of a plot
+/// </summary>
 public record ReportPerformanceItem
 {
    public int PlotId { get; }

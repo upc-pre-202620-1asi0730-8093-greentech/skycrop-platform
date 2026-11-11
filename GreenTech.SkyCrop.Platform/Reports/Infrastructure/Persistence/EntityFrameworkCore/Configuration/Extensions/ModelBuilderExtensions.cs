@@ -1,15 +1,17 @@
-﻿using System.Text.Json;
-using GreenTech.SkyCrop.Platform.Reports.Domain.Model.Aggregates;
+﻿using GreenTech.SkyCrop.Platform.Reports.Domain.Model.Aggregates;
 using GreenTech.SkyCrop.Platform.Reports.Domain.Model.ValueObjects;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration.ValueConverters;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace GreenTech.SkyCrop.Platform.Reports.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
 
 public static class ModelBuilderExtensions
 {
+    /// <summary>
+    /// Configures the data model for the report aggregate and its relations
+    /// </summary>
+    /// <param name="builder">The model builder provided by Entity Framework Core</param>
     public static void ApplyReportsConfiguration(this ModelBuilder builder)
     {
         var utcTime = new ValueConverter<DateTimeOffset, DateTime>(

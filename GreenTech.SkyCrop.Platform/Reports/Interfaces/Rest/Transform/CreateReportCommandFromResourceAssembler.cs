@@ -3,6 +3,9 @@ using GreenTech.SkyCrop.Platform.Reports.Interfaces.Rest.Resources;
 
 namespace GreenTech.SkyCrop.Platform.Reports.Interfaces.Rest.Transform;
 
+/// <summary>
+/// Assembler responsible for transforming a CreateReportResource into a CreateReportCommand
+/// </summary>
 public static class CreateReportCommandFromResourceAssembler
 {
 

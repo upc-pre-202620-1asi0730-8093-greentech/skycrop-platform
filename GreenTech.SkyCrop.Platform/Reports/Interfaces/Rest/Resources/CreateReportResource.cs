@@ -1,5 +1,8 @@
 ﻿namespace GreenTech.SkyCrop.Platform.Reports.Interfaces.Rest.Resources;
 
+/// <summary>
+/// Resource used to create a report
+/// </summary>
 public record CreateReportResource(
     string Title,
     string GeneratedAt,

@@ -5,6 +5,9 @@ using GreenTech.SkyCrop.Platform.Shared.Domain.Model.Aggregates;
 
 namespace GreenTech.SkyCrop.Platform.Reports.Domain.Model.Aggregates;
 
+/// <summary>
+/// Report aggregate root
+/// </summary>
 public partial class Report : AggregateRoot
 {
     public ReportId Id { get; }

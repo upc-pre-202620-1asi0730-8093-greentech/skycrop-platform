@@ -3,6 +3,7 @@ using GreenTech.SkyCrop.Platform.Plots.Infrastructure.Persistence.EntityFramewor
 using GreenTech.SkyCrop.Platform.Drones.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Interceptors;
+using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Persistence.EntityFrameworkCore.Configuration.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
@@ -28,9 +29,9 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
         base.OnModelCreating(builder);
         
         builder.ApplyReportsConfiguration();
-
         builder.ApplyDronesConfiguration();
         builder.ApplyPlotsConfiguration();
+        builder.ApplyDiagnosesConfiguration();
         builder.UseSnakeCaseNamingConvention();
     }
 }

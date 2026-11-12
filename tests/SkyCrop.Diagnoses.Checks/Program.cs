@@ -3,6 +3,8 @@ using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Entities;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.ValueObjects;
 using GreenTech.SkyCrop.Platform.Diagnoses.Application.IntegrationServices;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.ImageAnalysis;
+using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
+using Microsoft.EntityFrameworkCore;
 
 var passed = 0;
 var failed = 0;
@@ -432,6 +434,110 @@ Test("Each simulated result can complete its matching diagnosis", () =>
               diagnosis.Anomalies.Count == result.Anomalies.Count,
             $"Analysis could not complete the {scenario} diagnosis.");
     }
+});
+
+// These checks inspect EF metadata and converters.
+// They do not open a MySQL connection.
+using var diagnosisContext = new AppDbContext(
+    new DbContextOptionsBuilder<AppDbContext>()
+        .UseMySQL(
+            "server=127.0.0.1;database=model_only;user=unused;password=unused;")
+        .Options);
+
+Test("EF maps diagnoses and their history index", () =>
+{
+    var mapping = diagnosisContext.Model.FindEntityType(typeof(Diagnosis))
+                  ?? throw new InvalidOperationException(
+                      "Diagnosis is missing from the EF model.");
+
+    Check(mapping.GetTableName() == "diagnoses",
+        "Unexpected diagnosis table.");
+
+    Check(mapping.GetIndexes().Any(index =>
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual(new[] { "PlotId", "MonitoredAt", "Id" })),
+        "The history index is missing.");
+
+    Check(mapping.FindProperty(nameof(Diagnosis.GeneratedAt))!.IsNullable,
+        "Incomplete diagnoses must allow a null generation date.");
+});
+
+Test("EF converts NDVI to a number and restores its value object", () =>
+{
+    var mapping = diagnosisContext.Model.FindEntityType(typeof(Diagnosis))!;
+    var converter = mapping.FindProperty(nameof(Diagnosis.AverageNdvi))!
+        .GetTypeMapping().Converter!;
+
+    var stored = converter.ConvertToProvider(new Ndvi(0.4));
+    var restored = (Ndvi)converter.ConvertFromProvider(stored)!;
+
+    Check(stored is double value && value == 0.4,
+        "NDVI must be stored as a number.");
+    Check(restored == new Ndvi(0.4),
+        "NDVI was not restored correctly.");
+    Check(converter.ConvertToProvider(null) is null,
+        "Missing NDVI must remain null.");
+});
+
+Test("EF preserves image identifiers and creates independent snapshots", () =>
+{
+    var mapping = diagnosisContext.Model.FindEntityType(typeof(Diagnosis))!;
+    var property = mapping.FindProperty("_imageIds")!;
+    var converter = property.GetTypeMapping().Converter!;
+    var comparer = property.GetValueComparer()!;
+
+    var original = new List<int> { 10, 11 };
+    var stored = converter.ConvertToProvider(original);
+    var restored = (List<int>)converter.ConvertFromProvider(stored)!;
+    var snapshot = (List<int>)comparer.Snapshot(original)!;
+
+    Check(restored.SequenceEqual(original),
+        "Image references changed during conversion.");
+
+    original.Add(12);
+
+    Check(snapshot.SequenceEqual(new[] { 10, 11 }),
+        "The change-tracking snapshot shares the original list.");
+    Check(!comparer.Equals(original, snapshot),
+        "The comparer did not detect a list modification.");
+});
+
+Test("EF maps anomalies as owned entities of a diagnosis", () =>
+{
+    var mapping = diagnosisContext.Model.FindEntityType(typeof(Diagnosis))!;
+    var anomaly = mapping.FindNavigation(nameof(Diagnosis.Anomalies))!
+        .TargetEntityType;
+
+    Check(anomaly.GetTableName() == "diagnosis_anomalies",
+        "Unexpected anomaly table.");
+
+    var ownership = anomaly.GetForeignKeys()
+        .Single(foreignKey => foreignKey.IsOwnership);
+
+    Check(ownership.Properties.Single().Name == nameof(Anomaly.DiagnosisId),
+        "Anomaly ownership must use DiagnosisId.");
+
+    Check(anomaly.FindProperty(nameof(Anomaly.Latitude))!.IsNullable &&
+          anomaly.FindProperty(nameof(Anomaly.Longitude))!.IsNullable,
+        "Anomalies without coordinates must remain persistable.");
+});
+
+Test("EF normalizes monitoring dates to UTC without changing the instant", () =>
+{
+    var mapping = diagnosisContext.Model.FindEntityType(typeof(Diagnosis))!;
+    var converter = mapping.FindProperty(nameof(Diagnosis.MonitoredAt))!
+        .GetTypeMapping().Converter!;
+
+    var localTime = new DateTimeOffset(
+        2026, 10, 10, 7, 0, 0, TimeSpan.FromHours(-5));
+
+    var stored = (DateTime)converter.ConvertToProvider(localTime)!;
+    var restored = (DateTimeOffset)converter.ConvertFromProvider(stored)!;
+
+    Check(stored == localTime.UtcDateTime,
+        "Monitoring date was not converted to UTC.");
+    Check(restored == localTime && restored.Offset == TimeSpan.Zero,
+        "UTC conversion changed the monitoring instant.");
 });
 
 Console.WriteLine();

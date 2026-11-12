@@ -1,6 +1,8 @@
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Entities;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.ValueObjects;
+using GreenTech.SkyCrop.Platform.Diagnoses.Application.IntegrationServices;
+using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.ImageAnalysis;
 
 var passed = 0;
 var failed = 0;
@@ -315,6 +317,120 @@ Test("Pending and processing diagnoses can fail without completed results", () =
             diagnosis.CompleteSimulated(
                 "Late result", new Ndvi(0.4),
                 new[] { CreateAnomaly() }, requestedAt));
+    }
+});
+
+var analyzer = new SimulatedImageAnalysis();
+
+ImageAnalysisResult Analyze(string scenario) =>
+    analyzer.AnalyzeAsync(
+        new ImageAnalysisInput(
+            scenario, "North sector", -12.0464, -77.0428))
+    .GetAwaiter().GetResult();
+
+Test("Healthy analysis returns NDVI 0.8 without anomalies", () =>
+{
+    var result = Analyze("HEALTHY");
+
+    Check(result.AverageNdvi.Value == 0.8 &&
+          result.Anomalies.Count == 0,
+        "Unexpected healthy result.");
+});
+
+Test("Water stress analysis returns the frontend scenario values", () =>
+{
+    var result = Analyze("WATER_STRESS");
+    var anomaly = result.Anomalies.Single();
+
+    Check(result.AverageNdvi.Value == 0.4 &&
+          anomaly.Type == "WATER_STRESS" &&
+          anomaly.Severity == "MEDIUM",
+        "Unexpected water stress result.");
+
+    Check(anomaly.Latitude == -12.0464 &&
+          anomaly.Longitude == -77.0428 &&
+          anomaly.Location == "North sector",
+        "Analysis did not preserve location data.");
+});
+
+Test("Pest analysis returns NDVI 0.55 and high severity", () =>
+{
+    var result = Analyze("PEST");
+    var anomaly = result.Anomalies.Single();
+
+    Check(result.AverageNdvi.Value == 0.55 &&
+          anomaly.Type == "PEST" &&
+          anomaly.Severity == "HIGH",
+        "Unexpected pest result.");
+});
+
+Test("Analysis without coordinates preserves the diagnosis results", () =>
+{
+    var result = analyzer.AnalyzeAsync(
+        new ImageAnalysisInput("PEST", "North sector", null, null))
+        .GetAwaiter().GetResult();
+
+    var anomaly = result.Anomalies.Single();
+
+    Check(result.AverageNdvi.Value == 0.55 &&
+          anomaly.Latitude is null &&
+          anomaly.Longitude is null,
+        "Missing coordinates must not remove the analysis result.");
+});
+
+Test("Analysis rejects unknown scenarios and invalid coordinates", () =>
+{
+    Throws<ArgumentException>(() => Analyze("UNKNOWN"));
+
+    foreach (var coordinates in new (double? Latitude, double? Longitude)[]
+             {
+                 (0, null),
+                 (null, 0),
+                 (91, 0),
+                 (0, -181),
+                 (double.NaN, 0)
+             })
+    {
+        Throws<ArgumentException>(() =>
+            analyzer.AnalyzeAsync(
+                new ImageAnalysisInput(
+                    "HEALTHY", "North sector",
+                    coordinates.Latitude, coordinates.Longitude))
+                .GetAwaiter().GetResult());
+    }
+});
+
+Test("Analysis respects cancellation", () =>
+{
+    using var cancellation = new CancellationTokenSource();
+    cancellation.Cancel();
+
+    Throws<OperationCanceledException>(() =>
+        analyzer.AnalyzeAsync(
+            new ImageAnalysisInput("HEALTHY", "North sector", null, null),
+            cancellation.Token)
+        .GetAwaiter().GetResult());
+});
+
+Test("Each simulated result can complete its matching diagnosis", () =>
+{
+    foreach (var scenario in new[] { "HEALTHY", "WATER_STRESS", "PEST" })
+    {
+        var diagnosis = CreateDiagnosis(scenario);
+        var result = Analyze(scenario);
+
+        diagnosis.StartProcessing();
+        diagnosis.CompleteSimulated(
+            result.Observations,
+            result.AverageNdvi,
+            result.Anomalies,
+            requestedAt.AddMinutes(1));
+
+        Check(diagnosis.Status == EDiagnosisStatus.COMPLETED &&
+              diagnosis.Source == "SIMULATED" &&
+              diagnosis.AverageNdvi == result.AverageNdvi &&
+              diagnosis.Anomalies.Count == result.Anomalies.Count,
+            $"Analysis could not complete the {scenario} diagnosis.");
     }
 });
 

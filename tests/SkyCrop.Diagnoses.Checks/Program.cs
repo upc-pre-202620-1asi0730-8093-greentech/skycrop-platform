@@ -4,6 +4,10 @@ using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.ValueObjects;
 using GreenTech.SkyCrop.Platform.Diagnoses.Application.IntegrationServices;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.ImageAnalysis;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
+using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Repositories;
+using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Configuration;
+using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 
 var passed = 0;
@@ -538,6 +542,93 @@ Test("EF normalizes monitoring dates to UTC without changing the instant", () =>
         "Monitoring date was not converted to UTC.");
     Check(restored == localTime && restored.Offset == TimeSpan.Zero,
         "UTC conversion changed the monitoring instant.");
+});
+
+Test("Diagnosis dependencies resolve within an application scope", () =>
+{
+    var services = new ServiceCollection();
+
+    services.AddDbContext<AppDbContext>(options =>
+        options.UseMySQL(
+            "server=127.0.0.1;database=model_only;user=unused;password=unused;"));
+
+    services.AddDiagnosesContext();
+
+    using var provider = services.BuildServiceProvider(
+        new ServiceProviderOptions
+        {
+            ValidateScopes = true,
+            ValidateOnBuild = true
+        });
+
+    using var scope = provider.CreateScope();
+
+    var repository = scope.ServiceProvider
+        .GetRequiredService<IDiagnosisRepository>();
+
+    var analysis = scope.ServiceProvider
+        .GetRequiredService<IImageAnalysis>();
+
+    Check(repository is DiagnosisRepository,
+        "The diagnosis repository was not registered correctly.");
+
+    Check(analysis is SimulatedImageAnalysis,
+        "The simulated analysis service was not registered correctly.");
+
+    Check(ReferenceEquals(
+            repository,
+            scope.ServiceProvider.GetRequiredService<IDiagnosisRepository>()),
+        "A scope must reuse its repository instance.");
+});
+
+Test("Repository stages a completed diagnosis and its anomalies", () =>
+{
+    using var context = new AppDbContext(
+        new DbContextOptionsBuilder<AppDbContext>()
+            .UseMySQL(
+                "server=127.0.0.1;database=model_only;user=unused;password=unused;")
+            .Options);
+
+    var repository = new DiagnosisRepository(context);
+    var diagnosis = CreateDiagnosis();
+    var result = Analyze("WATER_STRESS");
+
+    diagnosis.StartProcessing();
+    diagnosis.CompleteSimulated(
+        result.Observations,
+        result.AverageNdvi,
+        result.Anomalies,
+        requestedAt.AddMinutes(1));
+
+    repository.AddAsync(diagnosis).GetAwaiter().GetResult();
+
+    Check(context.Entry(diagnosis).State == EntityState.Added,
+        "The diagnosis was not staged for insertion.");
+
+    var anomalyEntries = context.ChangeTracker.Entries<Anomaly>().ToArray();
+
+    Check(anomalyEntries.Length == 1 &&
+          anomalyEntries[0].State == EntityState.Added,
+        "The owned anomaly was not staged with its diagnosis.");
+
+    // No SaveChanges call: this test does not write to MySQL.
+});
+
+Test("Repository rejects invalid plot identifiers before querying MySQL", () =>
+{
+    using var context = new AppDbContext(
+        new DbContextOptionsBuilder<AppDbContext>()
+            .UseMySQL(
+                "server=127.0.0.1;database=model_only;user=unused;password=unused;")
+            .Options);
+
+    var repository = new DiagnosisRepository(context);
+
+    foreach (var plotId in new[] { 0, -1 })
+    {
+        Throws<ArgumentException>(() =>
+            repository.FindByPlotIdAsync(plotId).GetAwaiter().GetResult());
+    }
 });
 
 Console.WriteLine();

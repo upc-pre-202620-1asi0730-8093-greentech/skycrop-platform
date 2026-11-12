@@ -23,6 +23,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using Scalar.AspNetCore;
 using ProblemDetailsFactory = GreenTech.SkyCrop.Platform.Shared.Interfaces.Rest.ProblemDetails.ProblemDetailsFactory;
+using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -94,6 +95,9 @@ builder.Services.AddDronesContext();
 
 // Plots Bounded Context
 builder.Services.AddPlotsContext();
+
+// Diagnoses Bounded Context
+builder.Services.AddDiagnosesContext();
 
 // Mediator Configuration
 builder.Services.AddScoped(typeof(ICommandPipelineBehavior<>), typeof(LoggingCommandBehavior<>));

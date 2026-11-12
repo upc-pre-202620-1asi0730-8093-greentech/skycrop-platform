@@ -19,6 +19,91 @@ namespace GreenTech.SkyCrop.Platform.Migrations
                 .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
+            modelBuilder.Entity("GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates.Diagnosis", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    b.Property<double?>("AverageNdvi")
+                        .HasColumnType("double")
+                        .HasColumnName("average_ndvi");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("failure_reason");
+
+                    b.Property<int>("FlightId")
+                        .HasColumnType("int")
+                        .HasColumnName("flight_id");
+
+                    b.Property<DateTime?>("GeneratedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("generated_at");
+
+                    b.Property<DateTime>("MonitoredAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("monitored_at");
+
+                    b.Property<string>("Observations")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)")
+                        .HasColumnName("observations");
+
+                    b.Property<int>("PlotId")
+                        .HasColumnType("int")
+                        .HasColumnName("plot_id");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("requested_at");
+
+                    b.Property<string>("Scenario")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("scenario");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("source");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("_imageIds")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("image_ids");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_diagnoses");
+
+                    b.HasIndex("FlightId")
+                        .HasDatabaseName("i_x_diagnoses_flight_id");
+
+                    b.HasIndex("PlotId", "MonitoredAt", "Id")
+                        .HasDatabaseName("i_x_diagnoses_plot_id_monitored_at_id");
+
+                    b.ToTable("diagnoses", (string)null);
+                });
+
             modelBuilder.Entity("GreenTech.SkyCrop.Platform.Drones.Domain.Model.Aggregates.Drone", b =>
                 {
                     b.Property<int>("Id")
@@ -364,6 +449,81 @@ namespace GreenTech.SkyCrop.Platform.Migrations
                         .HasName("p_k_reports");
 
                     b.ToTable("reports", (string)null);
+                });
+
+            modelBuilder.Entity("GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates.Diagnosis", b =>
+                {
+                    b.HasOne("GreenTech.SkyCrop.Platform.Drones.Domain.Model.Aggregates.Flight", null)
+                        .WithMany()
+                        .HasForeignKey("FlightId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_diagnoses_flights_flight_id");
+
+                    b.HasOne("GreenTech.SkyCrop.Platform.Plots.Domain.Model.Aggregates.AgriculturalPlot", null)
+                        .WithMany()
+                        .HasForeignKey("PlotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_diagnoses_agricultural_plots_plot_id");
+
+                    b.OwnsMany("GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Entities.Anomaly", "Anomalies", b1 =>
+                        {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("int")
+                                .HasColumnName("id");
+
+                            b1.Property<string>("Description")
+                                .IsRequired()
+                                .HasMaxLength(1000)
+                                .HasColumnType("varchar(1000)")
+                                .HasColumnName("description");
+
+                            b1.Property<int>("DiagnosisId")
+                                .HasColumnType("int")
+                                .HasColumnName("diagnosis_id");
+
+                            b1.Property<double?>("Latitude")
+                                .HasColumnType("double")
+                                .HasColumnName("latitude");
+
+                            b1.Property<string>("Location")
+                                .IsRequired()
+                                .HasMaxLength(255)
+                                .HasColumnType("varchar(255)")
+                                .HasColumnName("location");
+
+                            b1.Property<double?>("Longitude")
+                                .HasColumnType("double")
+                                .HasColumnName("longitude");
+
+                            b1.Property<string>("Severity")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("varchar(20)")
+                                .HasColumnName("severity");
+
+                            b1.Property<string>("Type")
+                                .IsRequired()
+                                .HasMaxLength(40)
+                                .HasColumnType("varchar(40)")
+                                .HasColumnName("type");
+
+                            b1.HasKey("Id")
+                                .HasName("p_k_diagnosis_anomalies");
+
+                            b1.HasIndex("DiagnosisId")
+                                .HasDatabaseName("i_x_diagnosis_anomalies_diagnosis_id");
+
+                            b1.ToTable("diagnosis_anomalies", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("DiagnosisId")
+                                .HasConstraintName("f_k_diagnosis_anomalies_diagnoses_diagnosis_id");
+                        });
+
+                    b.Navigation("Anomalies");
                 });
 
             modelBuilder.Entity("GreenTech.SkyCrop.Platform.Drones.Domain.Model.Aggregates.Flight", b =>

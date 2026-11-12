@@ -1,3 +1,4 @@
+using GreenTech.SkyCrop.Platform.Plots.Domain.Model.Events;
 using GreenTech.SkyCrop.Platform.Plots.Domain.Model.Commands;
 using GreenTech.SkyCrop.Platform.Shared.Domain.Model.Aggregates;
 using GreenTech.SkyCrop.Platform.Shared.Domain.Model.Entities;
@@ -43,6 +44,8 @@ public sealed class AgriculturalPlot : AggregateRoot, IAuditableEntity
         Latitude = command.Latitude;
         Longitude = command.Longitude;
         ImageUrl = imageUrl;
+
+        AddDomainEvent(() => new PlotRegisteredEvent(Id));
     }
 
     public int Id { get; private set; }

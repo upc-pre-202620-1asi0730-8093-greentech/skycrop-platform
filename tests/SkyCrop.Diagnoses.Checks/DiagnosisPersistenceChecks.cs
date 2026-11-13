@@ -11,6 +11,8 @@ using GreenTech.SkyCrop.Platform.Plots.Domain.Model.Commands;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using Microsoft.EntityFrameworkCore;
+using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Integration;
+using GreenTech.SkyCrop.Platform.Drones.Domain.Model;
 
 internal static class DiagnosisPersistenceChecks
 {
@@ -202,6 +204,57 @@ internal static class DiagnosisPersistenceChecks
 
             Check(!context.ChangeTracker.Entries<Diagnosis>().Any(),
                 "History queries do not track diagnosis entities");
+            var monitoring = new MonitoringDataSource(context);
+
+            var invalidImages = await monitoring.GetAsync(
+                plotId, flightId, Array.Empty<int>());
+
+            Check(invalidImages.IsFailure &&
+                  invalidImages.DomainError.Code == "Diagnoses.InvalidImages",
+                "Monitoring rejects empty image selections");
+
+            var plannedFlight = await monitoring.GetAsync(
+                plotId, flightId, new[] { imageId });
+
+            Check(plannedFlight.IsFailure &&
+                  plannedFlight.DomainError.Code == "Diagnoses.FlightNotCompleted",
+                "Monitoring rejects flights that are not completed");
+
+// Test fixture only: represent a flight completed by the future
+// Drones capture integration. This is not a production operation.
+            var storedFlight = await context.Set<Flight>()
+                .SingleAsync(item => item.Id == flightId);
+
+            context.Entry(storedFlight)
+                .Property(item => item.Status)
+                .CurrentValue = EFlightStatus.COMPLETED;
+
+            context.Entry(storedFlight)
+                .Property(item => item.ActiveDroneId)
+                .CurrentValue = null;
+
+            await context.SaveChangesAsync();
+            context.ChangeTracker.Clear();
+
+            var monitoringResult = await monitoring.GetAsync(
+                plotId, flightId, new[] { imageId });
+
+            Check(monitoringResult.IsSuccess &&
+                  monitoringResult.Value is { } data &&
+                  data.PlotId == plotId &&
+                  data.FlightId == flightId &&
+                  data.ImageIds.SequenceEqual(new[] { imageId }) &&
+                  data.MonitoredAt == monitoredAt &&
+                  data.Latitude == -12.0464 &&
+                  data.Longitude == -77.0428,
+                "Monitoring returns verified references, capture date and coordinates");
+
+            var missingImage = await monitoring.GetAsync(
+                plotId, flightId, new[] { int.MaxValue });
+
+            Check(missingImage.IsFailure &&
+                  missingImage.DomainError.Code == "Diagnoses.ImagesUnavailable",
+                "Monitoring rejects unavailable image references");
         }
         finally
         {

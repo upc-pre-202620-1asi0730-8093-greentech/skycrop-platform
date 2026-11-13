@@ -11,6 +11,8 @@ using GreenTech.SkyCrop.Platform.Shared.Domain.Repositories;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using GreenTech.SkyCrop.Platform.Diagnoses.Application.QueryServices;
 using GreenTech.SkyCrop.Platform.Diagnoses.Application.Internal.QueryServices;
+using GreenTech.SkyCrop.Platform.Diagnoses.Application.Acl;
+using GreenTech.SkyCrop.Platform.Diagnoses.Interfaces.Acl;
 
 namespace GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Configuration;
 
@@ -28,6 +30,7 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IDiagnosisCommandService, DiagnosisCommandService>();
         services.AddScoped<IDiagnosisQueryService, DiagnosisQueryService>();
+        services.AddScoped<IDiagnosesContextFacade, DiagnosesContextFacade>();
         return services;
     }
 }

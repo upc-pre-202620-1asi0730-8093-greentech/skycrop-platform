@@ -16,6 +16,7 @@ using GreenTech.SkyCrop.Platform.Plots.Domain.Model.Aggregates;
 using GreenTech.SkyCrop.Platform.Plots.Domain.Model.Commands;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using GreenTech.SkyCrop.Platform.Diagnoses.Application.Acl;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -450,6 +451,93 @@ internal static class DiagnosisPersistenceChecks
             Check(unavailableAccess.IsFailure &&
                   unavailableAccess.DomainError.Code == "Diagnoses.AccessNotConfigured",
                 "Queries preserve missing access integration errors");
+                        var facade = new DiagnosesContextFacade(queries);
+
+            var latestSummary = await facade
+                .GetLatestCompletedByPlotIdAsync(plotId);
+
+            Check(latestSummary.IsSuccess &&
+                  latestSummary.Value is { } summary &&
+                  summary.DiagnosisId == generatedId &&
+                  summary.MonitoredAt == monitoredAt &&
+                  summary.AverageNdvi == 0.4 &&
+                  summary.Source == "SIMULATED",
+                "Facade returns the latest completed diagnosis summary");
+
+            // A completed diagnosis inserted later with older monitoring
+            // data must not replace the current result.
+            var lateOlderDiagnosis = new Diagnosis(
+                plotId,
+                flightId,
+                new[] { imageId },
+                "HEALTHY",
+                monitoredAt.AddDays(-1),
+                DateTimeOffset.UtcNow);
+
+            lateOlderDiagnosis.StartProcessing();
+            lateOlderDiagnosis.CompleteSimulated(
+                "Older healthy monitoring result.",
+                new Ndvi(0.8),
+                Array.Empty<GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Entities.Anomaly>(),
+                DateTimeOffset.UtcNow);
+
+            context.Add(lateOlderDiagnosis);
+            await context.SaveChangesAsync();
+            context.ChangeTracker.Clear();
+
+            var afterOlderResult = await facade
+                .GetLatestCompletedByPlotIdAsync(plotId);
+
+            Check(afterOlderResult.IsSuccess &&
+                  afterOlderResult.Value?.DiagnosisId == generatedId,
+                "Older monitoring does not replace the latest completed result");
+
+            // More recent monitoring without successful analysis
+            // must not replace completed results.
+            var unfinishedDiagnosis = new Diagnosis(
+                plotId,
+                flightId,
+                new[] { imageId },
+                "WATER_STRESS",
+                DateTimeOffset.UtcNow.AddMinutes(-1),
+                DateTimeOffset.UtcNow);
+
+            context.Add(unfinishedDiagnosis);
+            await context.SaveChangesAsync();
+
+            var whilePending = await facade
+                .GetLatestCompletedByPlotIdAsync(plotId);
+
+            Check(whilePending.IsSuccess &&
+                  whilePending.Value?.DiagnosisId == generatedId,
+                "Pending diagnoses do not replace completed results");
+
+            unfinishedDiagnosis.Fail("Simulated failure.");
+            await context.SaveChangesAsync();
+
+            var afterFailure = await facade
+                .GetLatestCompletedByPlotIdAsync(plotId);
+
+            Check(afterFailure.IsSuccess &&
+                  afterFailure.Value?.DiagnosisId == generatedId,
+                "Failed diagnoses do not replace completed results");
+
+            var restrictedFacade =
+                new DiagnosesContextFacade(restrictedQueries);
+
+            var emptySummary = await restrictedFacade
+                .GetLatestCompletedByPlotIdAsync(emptyPlot.Id);
+
+            Check(emptySummary.IsSuccess && emptySummary.Value is null,
+                "A plot without completed diagnoses returns an empty summary");
+
+            var deniedSummary = await restrictedFacade
+                .GetLatestCompletedByPlotIdAsync(plotId);
+
+            Check(deniedSummary.IsFailure &&
+                  deniedSummary.DomainError.Code ==
+                      "Diagnoses.PlotAccessDenied",
+                "Facade preserves plot access restrictions");
         }
         finally
         {

@@ -7,5 +7,6 @@ public record CropResource(
     DateOnly PlantingDate,
     decimal PlantedAreaHectares,
     string SowingMethod,
-    string GrowthStage
+    string GrowthStage,
+    string Notes
     );

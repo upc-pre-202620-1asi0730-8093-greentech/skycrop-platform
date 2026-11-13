@@ -9,6 +9,7 @@ using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Configuration;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using GreenTech.SkyCrop.Platform.Diagnoses.Interfaces.Rest.Transform;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Integration;
+using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Events;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
@@ -899,6 +900,149 @@ Test("Unfinished and failed diagnoses do not expose completed map data", () =>
 
     diagnosis.Fail("Simulated analysis failure.");
     CheckUnavailable();
+});
+
+Test("Diagnosis records request and processing events once", () =>
+{
+    var diagnosis = CreateDiagnosis();
+
+    var requested = diagnosis.DomainEvents
+        .OfType<DiagnosisRequestedEvent>()
+        .Single();
+
+    Check(requested.PlotId == diagnosis.PlotId &&
+          requested.FlightId == diagnosis.FlightId &&
+          requested.RequestedAt == requestedAt,
+        "Request event must identify the monitoring request.");
+
+    diagnosis.ClearDomainEvents();
+    diagnosis.StartProcessing();
+
+    Check(diagnosis.DomainEvents.Count == 1 &&
+          diagnosis.DomainEvents.Single()
+              is DiagnosisProcessingStartedEvent,
+        "Starting processing must record one event.");
+
+    Throws<InvalidOperationException>(
+        () => diagnosis.StartProcessing());
+
+    Check(diagnosis.DomainEvents.Count == 1,
+        "Rejected transitions must not add another event.");
+});
+
+Test("Completed diagnosis records generated and anomaly facts", () =>
+{
+    var diagnosis = CreateDiagnosis();
+    diagnosis.StartProcessing();
+    diagnosis.ClearDomainEvents();
+
+    diagnosis.CompleteSimulated(
+        "Simulated water stress.",
+        new Ndvi(0.4),
+        [CreateAnomaly()],
+        requestedAt.AddMinutes(1));
+
+    var generated = diagnosis.DomainEvents
+        .OfType<DiagnosisGeneratedEvent>()
+        .Single();
+
+    var detected = diagnosis.DomainEvents
+        .OfType<AgronomicAnomalyDetectedEvent>()
+        .Single();
+
+    Check(generated.MonitoredAt == diagnosis.MonitoredAt &&
+          generated.GeneratedAt == requestedAt.AddMinutes(1) &&
+          generated.AverageNdvi == 0.4 &&
+          generated.AnomalyCount == 1 &&
+          generated.Source == "SIMULATED",
+        "Generated event must preserve monitoring and result data.");
+
+    Check(detected.Type == "WATER_STRESS" &&
+          detected.Severity == "MEDIUM" &&
+          detected.Source == "SIMULATED",
+        "Anomaly event must preserve its classification and source.");
+
+    Check(diagnosis.DomainEvents.Count == 2,
+        "One anomaly must produce two completion-related events.");
+
+    Throws<InvalidOperationException>(() =>
+        diagnosis.CompleteSimulated(
+            "Repeated completion.",
+            new Ndvi(0.4),
+            [CreateAnomaly()],
+            requestedAt.AddMinutes(2)));
+
+    Check(diagnosis.DomainEvents.Count == 2,
+        "Repeated completion must not duplicate events.");
+
+    diagnosis.ClearDomainEvents();
+
+    Check(diagnosis.DomainEvents.Count == 0,
+        "Published events must be removable from the aggregate.");
+});
+
+Test("Healthy completion does not record anomaly events", () =>
+{
+    var diagnosis = CreateDiagnosis("HEALTHY");
+    diagnosis.StartProcessing();
+    diagnosis.ClearDomainEvents();
+
+    diagnosis.CompleteSimulated(
+        "Healthy simulated result.",
+        new Ndvi(0.8),
+        Array.Empty<Anomaly>(),
+        requestedAt.AddMinutes(1));
+
+    Check(diagnosis.DomainEvents.Count == 1 &&
+          diagnosis.DomainEvents.Single()
+              is DiagnosisGeneratedEvent { AnomalyCount: 0 },
+        "Healthy completion must only record the generated event.");
+});
+
+Test("Invalid results do not record completion events", () =>
+{
+    var diagnosis = CreateDiagnosis();
+    diagnosis.StartProcessing();
+    diagnosis.ClearDomainEvents();
+
+    Throws<ArgumentException>(() =>
+        diagnosis.CompleteSimulated(
+            "Invalid scenario results.",
+            new Ndvi(0.4),
+            [CreateAnomaly("PEST")],
+            requestedAt.AddMinutes(1)));
+
+    Check(diagnosis.Status == EDiagnosisStatus.PROCESSING &&
+          diagnosis.DomainEvents.Count == 0,
+        "Rejected results must preserve state without success events.");
+});
+
+Test("Failed diagnoses record failure without success events", () =>
+{
+    foreach (var startProcessing in new[] { false, true })
+    {
+        var diagnosis = CreateDiagnosis();
+
+        if (startProcessing)
+            diagnosis.StartProcessing();
+
+        diagnosis.ClearDomainEvents();
+        diagnosis.Fail("Analysis could not be completed.");
+
+        Check(diagnosis.DomainEvents.Count == 1 &&
+              diagnosis.DomainEvents.Single()
+                  is DiagnosisFailedEvent
+                  {
+                      Reason: "Analysis could not be completed."
+                  },
+            "Failure must record its reason without generated events.");
+
+        Throws<InvalidOperationException>(
+            () => diagnosis.Fail("Repeated failure."));
+
+        Check(diagnosis.DomainEvents.Count == 1,
+            "Repeated failure must not duplicate events.");
+    }
 });
 
 Console.WriteLine();

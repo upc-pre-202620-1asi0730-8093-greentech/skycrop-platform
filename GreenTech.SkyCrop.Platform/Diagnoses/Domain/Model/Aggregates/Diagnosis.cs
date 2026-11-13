@@ -2,6 +2,7 @@
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.ValueObjects;
 using GreenTech.SkyCrop.Platform.Shared.Domain.Model.Aggregates;
 using GreenTech.SkyCrop.Platform.Shared.Domain.Model.Entities;
+using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Events;
 
 namespace GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates;
 
@@ -68,6 +69,11 @@ public sealed class Diagnosis : AggregateRoot, IAuditableEntity
         RequestedAt = requestedAt.ToUniversalTime();
 
         _imageIds.AddRange(ids);
+        AddDomainEvent(() => new DiagnosisRequestedEvent(
+            Id,
+            PlotId,
+            FlightId,
+            RequestedAt));
     }
 
     public int Id { get; private set; }
@@ -103,6 +109,10 @@ public sealed class Diagnosis : AggregateRoot, IAuditableEntity
                 "Only pending diagnoses can start processing.");
 
         Status = EDiagnosisStatus.PROCESSING;
+        AddDomainEvent(() => new DiagnosisProcessingStartedEvent(
+            Id,
+            PlotId,
+            FlightId));
     }
 
     public void CompleteSimulated(
@@ -172,6 +182,33 @@ public sealed class Diagnosis : AggregateRoot, IAuditableEntity
 
         _anomalies.AddRange(results);
         Status = EDiagnosisStatus.COMPLETED;
+        var completedAt = GeneratedAt.Value;
+        var ndviValue = averageNdvi.Value;
+        var anomalyCount = results.Length;
+
+        AddDomainEvent(() => new DiagnosisGeneratedEvent(
+            Id,
+            PlotId,
+            FlightId,
+            MonitoredAt,
+            completedAt,
+            Scenario,
+            Source,
+            ndviValue,
+            text,
+            anomalyCount));
+
+        foreach (var anomaly in results)
+        {
+            AddDomainEvent(() => new AgronomicAnomalyDetectedEvent(
+                Id,
+                PlotId,
+                anomaly.Id,
+                anomaly.Type,
+                anomaly.Severity,
+                Source,
+                MonitoredAt));
+        }
     }
 
     public void Fail(string reason)
@@ -193,5 +230,10 @@ public sealed class Diagnosis : AggregateRoot, IAuditableEntity
 
         FailureReason = text;
         Status = EDiagnosisStatus.FAILED;
+        AddDomainEvent(() => new DiagnosisFailedEvent(
+            Id,
+            PlotId,
+            FlightId,
+            text));
     }
 }

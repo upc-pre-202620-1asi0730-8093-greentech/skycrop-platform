@@ -3,7 +3,7 @@ using GreenTech.SkyCrop.Platform.Crops.Interfaces.Rest.Resources;
 
 namespace GreenTech.SkyCrop.Platform.Crops.Interfaces.Rest.Transform;
 
-public static class CreateCropFromResourceAssembler
+public static class CreateCropCommandFromResourceAssembler
 {
     public static CreateCropCommand ToCommandFromResource(CreateCropResource resource)
     {

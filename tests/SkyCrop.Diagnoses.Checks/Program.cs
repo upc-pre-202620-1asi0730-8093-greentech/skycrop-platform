@@ -7,9 +7,10 @@ using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFramewo
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Repositories;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Configuration;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using GreenTech.SkyCrop.Platform.Diagnoses.Interfaces.Rest.Transform;
+using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Integration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
-using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Integration;
 using System.Net;
 using Microsoft.AspNetCore.Http;
 
@@ -759,6 +760,145 @@ Test("Local demo rejects calls without an HTTP request", () =>
 
     Check(result.IsFailure,
         "Missing HTTP context must not grant demonstration access.");
+});
+
+Test("Map preserves located results and provides their legend", () =>
+{
+    var diagnosis = CreateDiagnosis();
+    diagnosis.StartProcessing();
+
+    diagnosis.CompleteSimulated(
+        "Simulated water stress.",
+        new Ndvi(0.4),
+        [
+            new Anomaly(
+                "WATER_STRESS", "MEDIUM",
+                "Simulated water stress.", "North sector",
+                -12.0464, -77.0428)
+        ],
+        requestedAt.AddMinutes(1));
+
+    var map = DiagnosisMapResourceFromEntityAssembler
+        .ToResourceFromEntity(diagnosis);
+
+    Check(map.Status == "AVAILABLE" &&
+          map.UnavailableReason is null &&
+          map.Source == "SIMULATED",
+        "Located simulated results must produce an available map.");
+
+    Check(map.Points.Count == 1 &&
+          map.Points.Single().Latitude == -12.0464 &&
+          map.Points.Single().Longitude == -77.0428,
+        "Map coordinates must preserve the diagnosis results.");
+
+    Check(map.Legend.Any(item =>
+            item.Severity == map.Points.Single().Severity &&
+            item.Color == "#ac7200"),
+        "The represented severity must have its frontend legend color.");
+});
+
+Test("Map never fabricates missing coordinates", () =>
+{
+    var diagnosis = CreateDiagnosis();
+    diagnosis.StartProcessing();
+
+    diagnosis.CompleteSimulated(
+        "Water stress without coordinates.",
+        new Ndvi(0.4),
+        [CreateAnomaly()],
+        requestedAt.AddMinutes(1));
+
+    var map = DiagnosisMapResourceFromEntityAssembler
+        .ToResourceFromEntity(diagnosis);
+
+    Check(map.Status == "UNAVAILABLE" &&
+          map.UnavailableReason == "MISSING_COORDINATES" &&
+          map.Points.Count == 0 &&
+          map.UnlocatedAnomalies == 1,
+        "Results without coordinates must not become map points.");
+
+    Check(diagnosis.Status == EDiagnosisStatus.COMPLETED &&
+          diagnosis.Anomalies.Count == 1 &&
+          diagnosis.AverageNdvi!.Value == 0.4,
+        "Unavailable map data must not alter the completed diagnosis.");
+});
+
+Test("Partial map preserves unlocated anomalies in the diagnosis", () =>
+{
+    var diagnosis = CreateDiagnosis();
+    diagnosis.StartProcessing();
+
+    diagnosis.CompleteSimulated(
+        "Results with mixed coordinate availability.",
+        new Ndvi(0.4),
+        [
+            new Anomaly(
+                "WATER_STRESS", "MEDIUM",
+                "Located result.", "North sector",
+                -12.0464, -77.0428),
+            CreateAnomaly()
+        ],
+        requestedAt.AddMinutes(1));
+
+    var map = DiagnosisMapResourceFromEntityAssembler
+        .ToResourceFromEntity(diagnosis);
+
+    Check(map.Status == "PARTIAL" &&
+          map.TotalAnomalies == 2 &&
+          map.UnlocatedAnomalies == 1 &&
+          map.Points.Count == 1,
+        "Partial maps must report the results they cannot locate.");
+
+    Check(diagnosis.Anomalies.Count == 2,
+        "Generating map data must preserve all diagnosis anomalies.");
+});
+
+Test("Healthy diagnosis does not invent risk points", () =>
+{
+    var diagnosis = CreateDiagnosis("HEALTHY");
+    diagnosis.StartProcessing();
+
+    diagnosis.CompleteSimulated(
+        "Healthy simulated result.",
+        new Ndvi(0.8),
+        Array.Empty<Anomaly>(),
+        requestedAt.AddMinutes(1));
+
+    var map = DiagnosisMapResourceFromEntityAssembler
+        .ToResourceFromEntity(diagnosis);
+
+    Check(map.Status == "UNAVAILABLE" &&
+          map.UnavailableReason == "NO_ANOMALIES" &&
+          map.Points.Count == 0 &&
+          map.TotalAnomalies == 0,
+        "Healthy results must not generate artificial risk markers.");
+
+    Check(diagnosis.AverageNdvi!.Value == 0.8,
+        "Healthy results must remain available without map points.");
+});
+
+Test("Unfinished and failed diagnoses do not expose completed map data", () =>
+{
+    var diagnosis = CreateDiagnosis();
+
+    void CheckUnavailable()
+    {
+        var map = DiagnosisMapResourceFromEntityAssembler
+            .ToResourceFromEntity(diagnosis);
+
+        Check(map.Status == "UNAVAILABLE" &&
+              map.UnavailableReason == "DIAGNOSIS_NOT_COMPLETED" &&
+              map.Points.Count == 0,
+            "Only completed diagnoses may expose map results.");
+    }
+
+    CheckUnavailable();
+
+    diagnosis.StartProcessing();
+    CheckUnavailable();
+
+    diagnosis.Fail("Simulated analysis failure.");
+    CheckUnavailable();
 });
 
 Console.WriteLine();

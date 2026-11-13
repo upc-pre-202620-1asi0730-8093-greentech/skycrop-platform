@@ -9,6 +9,7 @@ using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Configuration;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Integration;
 
 if (args.Contains("--mysql"))
 {
@@ -635,6 +636,79 @@ Test("Repository rejects invalid plot identifiers before querying MySQL", () =>
         Throws<ArgumentException>(() =>
             repository.FindByPlotIdAsync(plotId).GetAwaiter().GetResult());
     }
+});
+
+Test("Unconfigured access never grants permission to a plot", () =>
+{
+    var services = new ServiceCollection();
+
+    services.AddDbContext<AppDbContext>(options =>
+        options.UseMySQL(
+            "server=127.0.0.1;database=model_only;user=unused;password=unused;"));
+
+    services.AddDiagnosesContext();
+
+    using var provider = services.BuildServiceProvider(
+        new ServiceProviderOptions
+        {
+            ValidateScopes = true,
+            ValidateOnBuild = true
+        });
+
+    using var scope = provider.CreateScope();
+
+    var access = scope.ServiceProvider
+        .GetRequiredService<IPlotAccessService>();
+
+    var result = access.CheckAccessAsync(1).GetAwaiter().GetResult();
+
+    Check(result.IsFailure &&
+          result.DomainError.Code == "Diagnoses.AccessNotConfigured",
+        "Missing IAM integration must not grant access.");
+});
+
+Test("Unconfigured access does not disguise failure as an empty history", () =>
+{
+    IPlotAccessService access = new UnconfiguredPlotAccessService();
+
+    var result = access.GetAccessiblePlotIdsAsync()
+        .GetAwaiter().GetResult();
+
+    Check(result.IsFailure &&
+          result.Value is null &&
+          result.DomainError.Code == "Diagnoses.AccessNotConfigured",
+        "Missing permissions integration must return a failure.");
+});
+
+Test("Access checks reject invalid plot identifiers", () =>
+{
+    IPlotAccessService access = new UnconfiguredPlotAccessService();
+
+    foreach (var plotId in new[] { 0, -1 })
+    {
+        var result = access.CheckAccessAsync(plotId)
+            .GetAwaiter().GetResult();
+
+        Check(result.IsFailure &&
+              result.DomainError.Code == "Diagnoses.InvalidPlotId",
+            "Invalid plot identifiers must be rejected.");
+    }
+});
+
+Test("Access checks respect cancellation", () =>
+{
+    IPlotAccessService access = new UnconfiguredPlotAccessService();
+
+    using var cancellation = new CancellationTokenSource();
+    cancellation.Cancel();
+
+    Throws<OperationCanceledException>(() =>
+        access.CheckAccessAsync(1, cancellation.Token)
+            .GetAwaiter().GetResult());
+
+    Throws<OperationCanceledException>(() =>
+        access.GetAccessiblePlotIdsAsync(cancellation.Token)
+            .GetAwaiter().GetResult());
 });
 
 Console.WriteLine();

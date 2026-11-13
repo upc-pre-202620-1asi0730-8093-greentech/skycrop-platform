@@ -4,6 +4,7 @@ using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.ImageAnalysis;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Integration;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Configuration;
 
@@ -15,6 +16,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDiagnosisRepository, DiagnosisRepository>();
         services.AddScoped<IImageAnalysis, SimulatedImageAnalysis>();
         services.AddScoped<IMonitoringDataSource, MonitoringDataSource>();
+        services.TryAddScoped<IPlotAccessService, UnconfiguredPlotAccessService>();
         return services;
     }
 }

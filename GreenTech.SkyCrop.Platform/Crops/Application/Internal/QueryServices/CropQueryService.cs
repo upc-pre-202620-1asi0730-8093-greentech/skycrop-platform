@@ -11,4 +11,9 @@ public class CropQueryService(ICropRepository cropRepository) : ICropQueryServic
     {
         return await cropRepository.FindCropByIdAsNoTrackingAsync(query.CropId, cancellationToken);
     }
+
+    public async Task<IEnumerable<Crop?>> Handle(GetAllCropsQuery query, CancellationToken cancellationToken)
+    {
+        return await cropRepository.ListAsNoTrackingAsync(cancellationToken);
+    }
 }

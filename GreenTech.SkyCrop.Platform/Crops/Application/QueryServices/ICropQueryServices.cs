@@ -6,4 +6,5 @@ namespace GreenTech.SkyCrop.Platform.Crops.Application.QueryServices;
 public interface ICropQueryServices
 {
     Task<Crop?> Handle(GetCropByIdQuery query, CancellationToken cancellationToken);
+    Task<IEnumerable<Crop?>> Handle(GetAllCropsQuery query, CancellationToken cancellationToken);
 }

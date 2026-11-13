@@ -1,8 +1,12 @@
 ﻿using GreenTech.SkyCrop.Platform.Diagnoses.Application.IntegrationServices;
+using GreenTech.SkyCrop.Platform.Diagnoses.Application.Internal.CommandServices;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates;
+using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Commands;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.ValueObjects;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.ImageAnalysis;
+using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Integration;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using GreenTech.SkyCrop.Platform.Drones.Domain.Model;
 using GreenTech.SkyCrop.Platform.Drones.Domain.Model.Aggregates;
 using GreenTech.SkyCrop.Platform.Drones.Domain.Model.Commands;
 using GreenTech.SkyCrop.Platform.Drones.Domain.Model.Entities;
@@ -11,8 +15,7 @@ using GreenTech.SkyCrop.Platform.Plots.Domain.Model.Commands;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using Microsoft.EntityFrameworkCore;
-using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Integration;
-using GreenTech.SkyCrop.Platform.Drones.Domain.Model;
+using Microsoft.Extensions.Logging.Abstractions;
 
 internal static class DiagnosisPersistenceChecks
 {
@@ -33,10 +36,8 @@ internal static class DiagnosisPersistenceChecks
 
         if (context.Database.GetDbConnection().Database
             != "skycrop_diagnoses_checks")
-        {
             throw new InvalidOperationException(
                 "These checks require the skycrop_diagnoses_checks database.");
-        }
 
         if ((await context.Database.GetPendingMigrationsAsync()).Any())
             throw new InvalidOperationException(
@@ -151,8 +152,8 @@ internal static class DiagnosisPersistenceChecks
             context.ChangeTracker.Clear();
 
             var loaded = await repository.FindByIdAsNoTrackingAsync(diagnosisId)
-                ?? throw new InvalidOperationException(
-                    "The saved diagnosis was not found.");
+                         ?? throw new InvalidOperationException(
+                             "The saved diagnosis was not found.");
 
             Check(loaded.Status == EDiagnosisStatus.COMPLETED &&
                   loaded.AverageNdvi?.Value == 0.4 &&
@@ -255,6 +256,94 @@ internal static class DiagnosisPersistenceChecks
             Check(missingImage.IsFailure &&
                   missingImage.DomainError.Code == "Diagnoses.ImagesUnavailable",
                 "Monitoring rejects unavailable image references");
+
+            DiagnosisCommandService CreateCommandService(
+                IPlotAccessService plotAccess,
+                IImageAnalysis imageAnalysis)
+            {
+                return new DiagnosisCommandService(
+                    new DiagnosisRepository(context),
+                    new UnitOfWork(context),
+                    plotAccess,
+                    new MonitoringDataSource(context),
+                    imageAnalysis,
+                    TimeProvider.System,
+                    NullLogger<DiagnosisCommandService>.Instance);
+            }
+
+            var command = new GenerateDiagnosisCommand(
+                plotId, flightId, new[] { imageId }, "WATER_STRESS");
+
+            var countBefore = await context.Set<Diagnosis>().CountAsync();
+
+            var deniedService = CreateCommandService(
+                new TestPlotAccessService(-1),
+                new SimulatedImageAnalysis());
+
+            var deniedResult = await deniedService.Handle(command);
+
+            Check(deniedResult.IsFailure &&
+                  deniedResult.DomainError.Code == "Diagnoses.PlotAccessDenied" &&
+                  await context.Set<Diagnosis>().CountAsync() == countBefore,
+                "Generation without permission does not create a diagnosis");
+
+            var commandService = CreateCommandService(
+                new TestPlotAccessService(plotId),
+                new SimulatedImageAnalysis());
+
+            var generatedResult = await commandService.Handle(command);
+
+            if (generatedResult.IsFailure || generatedResult.Value is null)
+                throw new InvalidOperationException(
+                    $"Generation failed: {generatedResult.DomainError.Code}");
+
+            var generatedId = generatedResult.Value.Id;
+
+            context.ChangeTracker.Clear();
+
+            var generated = await new DiagnosisRepository(context)
+                .FindByIdAsNoTrackingAsync(generatedId);
+
+            Check(generated is not null &&
+                  generated.Status == EDiagnosisStatus.COMPLETED &&
+                  generated.AverageNdvi?.Value == 0.4 &&
+                  generated.Anomalies.Count == 1 &&
+                  generated.MonitoredAt == monitoredAt,
+                "Generation service persists a complete diagnosis from verified monitoring");
+
+            var failingService = CreateCommandService(
+                new TestPlotAccessService(plotId),
+                new FailingImageAnalysis());
+
+            var failureResult = await failingService.Handle(command);
+
+            if (failureResult.IsFailure || failureResult.Value is null)
+                throw new InvalidOperationException(
+                    "An analysis failure must preserve a queryable diagnosis.");
+
+            var failedId = failureResult.Value.Id;
+
+            context.ChangeTracker.Clear();
+
+            var savedFailure = await new DiagnosisRepository(context)
+                .FindByIdAsNoTrackingAsync(failedId);
+
+            Check(savedFailure is not null &&
+                  savedFailure.Status == EDiagnosisStatus.FAILED &&
+                  savedFailure.AverageNdvi is null &&
+                  savedFailure.Anomalies.Count == 0 &&
+                  savedFailure.FailureReason == "Analysis could not be completed.",
+                "Provider failure is persisted without leaking internal exception details");
+
+            var countBeforeInvalid = await context.Set<Diagnosis>().CountAsync();
+
+            var invalidResult = await commandService.Handle(
+                command with { Scenario = "UNKNOWN" });
+
+            Check(invalidResult.IsFailure &&
+                  invalidResult.DomainError.Code == "Diagnoses.InvalidRequest" &&
+                  await context.Set<Diagnosis>().CountAsync() == countBeforeInvalid,
+                "Invalid generation requests do not create database records");
         }
         finally
         {

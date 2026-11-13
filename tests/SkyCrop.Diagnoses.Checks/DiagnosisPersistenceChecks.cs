@@ -17,6 +17,9 @@ using GreenTech.SkyCrop.Platform.Plots.Domain.Model.Commands;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using GreenTech.SkyCrop.Platform.Diagnoses.Application.Acl;
+using Cortex.Mediator;
+using Microsoft.Extensions.DependencyInjection;
+using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Interceptors;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -31,8 +34,18 @@ internal static class DiagnosisPersistenceChecks
             throw new InvalidOperationException(
                 "Set SKYCROP_TEST_CONNECTION before running MySQL checks.");
 
+        using var eventServices = DiagnosisEventChecks.CreateServices();
+        using var eventScope = eventServices.CreateScope();
+
+        var mediator = eventScope.ServiceProvider
+            .GetRequiredService<IMediator>();
+
+        var recorder = eventScope.ServiceProvider
+            .GetRequiredService<DiagnosisEventRecorder>();
+
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseMySQL(connection)
+            .AddInterceptors(new DispatchDomainEventsInterceptor(mediator))
             .Options;
 
         await using var context = new AppDbContext(options);
@@ -538,6 +551,13 @@ internal static class DiagnosisPersistenceChecks
                   deniedSummary.DomainError.Code ==
                       "Diagnoses.PlotAccessDenied",
                 "Facade preserves plot access restrictions");
+            await DiagnosisEventChecks.RunAsync(
+                context,
+                recorder,
+                plotId,
+                flightId,
+                imageId,
+                Check);
         }
         finally
         {

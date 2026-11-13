@@ -1,0 +1,214 @@
+﻿using GreenTech.SkyCrop.Platform.Diagnoses.Application.IntegrationServices;
+using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates;
+using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.ValueObjects;
+using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.ImageAnalysis;
+using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using GreenTech.SkyCrop.Platform.Drones.Domain.Model.Aggregates;
+using GreenTech.SkyCrop.Platform.Drones.Domain.Model.Commands;
+using GreenTech.SkyCrop.Platform.Drones.Domain.Model.Entities;
+using GreenTech.SkyCrop.Platform.Plots.Domain.Model.Aggregates;
+using GreenTech.SkyCrop.Platform.Plots.Domain.Model.Commands;
+using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
+using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using Microsoft.EntityFrameworkCore;
+
+internal static class DiagnosisPersistenceChecks
+{
+    public static async Task RunAsync()
+    {
+        var connection = Environment.GetEnvironmentVariable(
+            "SKYCROP_TEST_CONNECTION");
+
+        if (string.IsNullOrWhiteSpace(connection))
+            throw new InvalidOperationException(
+                "Set SKYCROP_TEST_CONNECTION before running MySQL checks.");
+
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseMySQL(connection)
+            .Options;
+
+        await using var context = new AppDbContext(options);
+
+        if (context.Database.GetDbConnection().Database
+            != "skycrop_diagnoses_checks")
+        {
+            throw new InvalidOperationException(
+                "These checks require the skycrop_diagnoses_checks database.");
+        }
+
+        if ((await context.Database.GetPendingMigrationsAsync()).Any())
+            throw new InvalidOperationException(
+                "Apply all migrations before running these checks.");
+
+        await using var transaction =
+            await context.Database.BeginTransactionAsync();
+
+        var passed = 0;
+
+        void Check(bool condition, string message)
+        {
+            if (!condition)
+                throw new InvalidOperationException(message);
+
+            passed++;
+            Console.WriteLine($"PASS MySQL: {message}");
+        }
+
+        try
+        {
+            var plot = new AgriculturalPlot(new RegisterPlotCommand(
+                "Diagnosis test plot",
+                "Test operator",
+                "Potato",
+                "Loam",
+                new DateOnly(2026, 1, 1),
+                1m,
+                "Test sector",
+                -12.0464,
+                -77.0428,
+                null));
+
+            context.Add(plot);
+            await context.SaveChangesAsync();
+
+            var drone = new Drone(new CreateDroneCommand(
+                "Diagnosis test drone",
+                "Test model",
+                $"diag-{Guid.NewGuid():N}",
+                "Test camera",
+                30,
+                100));
+
+            context.Add(drone);
+            await context.SaveChangesAsync();
+
+            drone.Update(new UpdateDroneCommand(
+                drone.Id, Status: "AVAILABLE"));
+
+            var route = new FlightRoute(new CreateFlightRouteCommand(
+                "Diagnosis test route",
+                plot.Id,
+                30,
+                4,
+                new[]
+                {
+                    new RouteWaypoint(0, -12.0464, -77.0428),
+                    new RouteWaypoint(1, -12.0465, -77.0429)
+                }));
+
+            context.Add(route);
+            await context.SaveChangesAsync();
+
+            var flight = new Flight(drone, route, plot.Id);
+            context.Add(flight);
+            await context.SaveChangesAsync();
+
+            var monitoredAt = new DateTimeOffset(
+                2026, 10, 10, 12, 0, 0, TimeSpan.Zero);
+
+            var image = new AerialImage(
+                flight.Id,
+                "https://example.com/diagnosis-test.jpg",
+                monitoredAt);
+
+            context.Add(image);
+            await context.SaveChangesAsync();
+
+            var repository = new DiagnosisRepository(context);
+            var unitOfWork = new UnitOfWork(context);
+            var analyzer = new SimulatedImageAnalysis();
+
+            var recent = new Diagnosis(
+                plot.Id, flight.Id, new[] { image.Id },
+                "WATER_STRESS", monitoredAt, monitoredAt.AddHours(1));
+
+            recent.StartProcessing();
+
+            var result = await analyzer.AnalyzeAsync(
+                new ImageAnalysisInput(
+                    "WATER_STRESS", "Test sector", -12.0464, -77.0428));
+
+            recent.CompleteSimulated(
+                result.Observations,
+                result.AverageNdvi,
+                result.Anomalies,
+                monitoredAt.AddHours(2));
+
+            await repository.AddAsync(recent);
+            await unitOfWork.CompleteAsync();
+
+            var diagnosisId = recent.Id;
+            var plotId = plot.Id;
+            var imageId = image.Id;
+            var flightId = flight.Id;
+
+            Check(diagnosisId > 0,
+                "MySQL generates a diagnosis identifier");
+
+            // Force the following query to read from the database.
+            context.ChangeTracker.Clear();
+
+            var loaded = await repository.FindByIdAsNoTrackingAsync(diagnosisId)
+                ?? throw new InvalidOperationException(
+                    "The saved diagnosis was not found.");
+
+            Check(loaded.Status == EDiagnosisStatus.COMPLETED &&
+                  loaded.AverageNdvi?.Value == 0.4 &&
+                  loaded.Source == "SIMULATED" &&
+                  loaded.ImageIds.SequenceEqual(new[] { imageId }),
+                "Diagnosis results and image references survive a database read");
+
+            var anomaly = loaded.Anomalies.Single();
+
+            Check(anomaly.Id > 0 &&
+                  anomaly.DiagnosisId == diagnosisId &&
+                  anomaly.Type == "WATER_STRESS" &&
+                  anomaly.Latitude == -12.0464 &&
+                  anomaly.Longitude == -77.0428,
+                "Owned anomalies are saved and loaded with their diagnosis");
+
+            Check(loaded.MonitoredAt == monitoredAt &&
+                  loaded.MonitoredAt.Offset == TimeSpan.Zero &&
+                  loaded.CreatedAt.HasValue &&
+                  loaded.UpdatedAt.HasValue,
+                "Monitoring and audit timestamps are preserved");
+
+            var older = new Diagnosis(
+                plotId, flightId, new[] { imageId },
+                "HEALTHY", monitoredAt.AddDays(-1), monitoredAt.AddHours(3));
+
+            older.Fail("Simulated processing failure");
+
+            await repository.AddAsync(older);
+            await unitOfWork.CompleteAsync();
+
+            context.ChangeTracker.Clear();
+
+            var history = (await repository.FindByPlotIdAsync(plotId)).ToArray();
+
+            Check(history.Length == 2 &&
+                  history[0].Id == diagnosisId &&
+                  history[1].Id == older.Id,
+                "History follows monitoring time rather than insertion order");
+
+            var failed = history[1];
+
+            Check(failed.Status == EDiagnosisStatus.FAILED &&
+                  failed.FailureReason == "Simulated processing failure" &&
+                  failed.AverageNdvi is null &&
+                  failed.GeneratedAt is null &&
+                  failed.Anomalies.Count == 0,
+                "Failed diagnoses preserve their reason without completed results");
+
+            Check(!context.ChangeTracker.Entries<Diagnosis>().Any(),
+                "History queries do not track diagnosis entities");
+        }
+        finally
+        {
+            await transaction.RollbackAsync();
+            Console.WriteLine("Test transaction rolled back.");
+        }
+
+        Console.WriteLine($"MySQL results: {passed} passed, 0 failed.");
+    }
+}

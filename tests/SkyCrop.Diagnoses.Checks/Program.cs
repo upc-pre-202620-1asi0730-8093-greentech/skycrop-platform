@@ -10,6 +10,12 @@ using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Persistence.EntityFram
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 
+if (args.Contains("--mysql"))
+{
+    await DiagnosisPersistenceChecks.RunAsync();
+    return;
+}
+
 var passed = 0;
 var failed = 0;
 

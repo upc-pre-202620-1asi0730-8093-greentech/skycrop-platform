@@ -6,6 +6,7 @@ using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Commands;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Queries;
 using GreenTech.SkyCrop.Platform.Diagnoses.Interfaces.Rest.Resources;
 using GreenTech.SkyCrop.Platform.Diagnoses.Interfaces.Rest.Transform;
+using GreenTech.SkyCrop.Platform.Diagnoses.Resources;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GreenTech.SkyCrop.Platform.Diagnoses.Interfaces.Rest;
@@ -26,10 +27,17 @@ public sealed class DiagnosesController(
     /// Lists accessible diagnoses, optionally filtered by plot.
     /// </summary>
     [HttpGet]
+    [EndpointSummary("List diagnoses")]
+    [EndpointDescription(
+        "Returns diagnoses from accessible plots, optionally filtered by plotId. " +
+        "Results are ordered by monitoring date, newest first.")]
     [ProducesResponseType(
         typeof(IEnumerable<DiagnosisResource>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(
-        [FromQuery, Range(1, int.MaxValue)] int? plotId,
+        [FromQuery, Range(1, int.MaxValue,
+            ErrorMessageResourceType = typeof(DiagnosesMessages),
+            ErrorMessageResourceName = nameof(DiagnosesMessages.RangeField))]
+        int? plotId,
         CancellationToken cancellationToken)
     {
         var result = plotId.HasValue
@@ -51,10 +59,17 @@ public sealed class DiagnosesController(
     /// Retrieves a diagnosis accessible to the current caller.
     /// </summary>
     [HttpGet("{id:int}")]
+    [EndpointSummary("Get diagnosis by ID")]
+    [EndpointDescription(
+        "Returns a diagnosis and its anomalies. Inaccessible and nonexistent " +
+        "diagnoses return the same not-found response.")]
     [ProducesResponseType(typeof(DiagnosisResource), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(
-        [Range(1, int.MaxValue)] int id,
+        [Range(1, int.MaxValue,
+            ErrorMessageResourceType = typeof(DiagnosesMessages),
+            ErrorMessageResourceName = nameof(DiagnosesMessages.RangeField))]
+        int id,
         CancellationToken cancellationToken)
     {
         var result = await queries.Handle(
@@ -73,6 +88,12 @@ public sealed class DiagnosesController(
     /// Inspect status: a registered diagnosis may have failed analysis.
     /// </summary>
     [HttpPost]
+    [EndpointSummary("Generate a simulated diagnosis")]
+    [EndpointDescription(
+        "Requires access to the plot and images belonging to a completed flight. " +
+        "Supported scenarios: HEALTHY, WATER_STRESS and PEST. " +
+        "A 201 response confirms registration; inspect status to determine " +
+        "whether analysis completed or failed. No real images are analyzed.")]
     [Consumes(MediaTypeNames.Application.Json)]
     [ProducesResponseType(typeof(DiagnosisResource), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

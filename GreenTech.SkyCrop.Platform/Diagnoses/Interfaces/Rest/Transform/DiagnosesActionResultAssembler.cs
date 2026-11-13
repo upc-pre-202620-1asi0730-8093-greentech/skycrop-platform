@@ -1,6 +1,7 @@
 ﻿using GreenTech.SkyCrop.Platform.Shared.Domain.Model.Errors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using GreenTech.SkyCrop.Platform.Diagnoses.Resources;
 
 namespace GreenTech.SkyCrop.Platform.Diagnoses.Interfaces.Rest.Transform;
 
@@ -24,7 +25,7 @@ public static class DiagnosesActionResultAssembler
         {
             Status = status,
             Title = error.Code,
-            Detail = error.Message
+            Detail = DiagnosesMessages.Get(error.Code) ?? error.Message
         };
 
         var response = new ObjectResult(problem)

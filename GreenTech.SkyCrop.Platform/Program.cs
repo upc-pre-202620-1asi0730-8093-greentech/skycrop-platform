@@ -160,7 +160,7 @@ using (var scope = app.Services.CreateScope())
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
-var supportedCultures = new[] { "en", "es" };
+var supportedCultures = new[] { "en-US", "en", "es-419", "es" };
 var localizationOptions = new RequestLocalizationOptions()
     .SetDefaultCulture(supportedCultures[0])
     .AddSupportedCultures(supportedCultures)

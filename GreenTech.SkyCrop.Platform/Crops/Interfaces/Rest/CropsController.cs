@@ -67,4 +67,18 @@ public class CropsController(
                 CropResourceFromEntityAssembler.ToResourceFromEntity(createdCrop))
         );
     }
+
+    [HttpGet]
+    [EndpointSummary("Get all Crops")]
+    [EndpointDescription("Get all crops.")]
+    [ProducesResponseType(typeof(IEnumerable<CropResource>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAllCrops(
+        [FromHeader(Name = "Accept-Language")] string? acceptLanguage,
+        CancellationToken cancellationToken)
+    {
+        var getAllCropsQuery = new GetAllCropsQuery();
+        var crops = await cropQueryService.Handle(getAllCropsQuery, cancellationToken);
+        var cropsResources = crops.Select(CropResourceFromEntityAssembler.ToResourceFromEntity);
+        return Ok(cropsResources);
+    }
 }

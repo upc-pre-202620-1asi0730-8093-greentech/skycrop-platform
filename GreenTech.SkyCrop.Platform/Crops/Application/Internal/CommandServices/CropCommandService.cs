@@ -22,7 +22,7 @@ public class CropCommandService(
         }
         catch (ArgumentException exception)
         {
-            return Result<Crop>.Failure(CropErrors.InvalidData(exception.Message));
+            return Result<Crop>.Failure(CropErrors.InvalidCropData);
         }
 
         await cropRepository.AddAsync(crop, cancellationToken);

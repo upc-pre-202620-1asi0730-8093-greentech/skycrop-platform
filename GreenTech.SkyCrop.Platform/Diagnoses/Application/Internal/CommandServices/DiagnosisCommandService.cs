@@ -4,7 +4,7 @@ using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Commands;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Repositories;
 using GreenTech.SkyCrop.Platform.Shared.Application.Model;
-using GreenTech.SkyCrop.Platform.Shared.Domain.Model.Errors;
+using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Errors;
 using GreenTech.SkyCrop.Platform.Shared.Domain.Repositories;
 using Microsoft.Extensions.Logging;
 
@@ -135,6 +135,5 @@ public sealed class DiagnosisCommandService(
     }
 
     private static Result<Diagnosis> Invalid(string message) =>
-        Result<Diagnosis>.Failure(Error.Validation(
-            "Diagnoses.InvalidRequest", message));
+        Result<Diagnosis>.Failure(DiagnosisErrors.InvalidRequest(message));
 }

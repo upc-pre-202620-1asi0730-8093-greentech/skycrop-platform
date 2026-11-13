@@ -351,41 +351,51 @@ ImageAnalysisResult Analyze(string scenario) =>
             scenario, "North sector", -12.0464, -77.0428))
     .GetAwaiter().GetResult();
 
-Test("Healthy analysis returns NDVI 0.8 without anomalies", () =>
+var analysisCases = new[]
 {
-    var result = Analyze("HEALTHY");
+    (Scenario: "HEALTHY", Ndvi: 0.8, Severity: ""),
+    (Scenario: "WATER_STRESS", Ndvi: 0.4, Severity: "MEDIUM"),
+    (Scenario: "PEST", Ndvi: 0.55, Severity: "HIGH")
+};
 
-    Check(result.AverageNdvi.Value == 0.8 &&
-          result.Anomalies.Count == 0,
-        "Unexpected healthy result.");
-});
-
-Test("Water stress analysis returns the frontend scenario values", () =>
+foreach (var testCase in analysisCases)
 {
-    var result = Analyze("WATER_STRESS");
-    var anomaly = result.Anomalies.Single();
+    Test($"{testCase.Scenario} analysis returns valid results and completes a diagnosis", () =>
+    {
+        var result = Analyze(testCase.Scenario);
+        var expectedAnomalies = testCase.Scenario == "HEALTHY" ? 0 : 1;
 
-    Check(result.AverageNdvi.Value == 0.4 &&
-          anomaly.Type == "WATER_STRESS" &&
-          anomaly.Severity == "MEDIUM",
-        "Unexpected water stress result.");
+        Check(result.AverageNdvi.Value == testCase.Ndvi &&
+              result.Anomalies.Count == expectedAnomalies,
+            $"Unexpected results for {testCase.Scenario}.");
 
-    Check(anomaly.Latitude == -12.0464 &&
-          anomaly.Longitude == -77.0428 &&
-          anomaly.Location == "North sector",
-        "Analysis did not preserve location data.");
-});
+        if (expectedAnomalies > 0)
+        {
+            var anomaly = result.Anomalies.Single();
 
-Test("Pest analysis returns NDVI 0.55 and high severity", () =>
-{
-    var result = Analyze("PEST");
-    var anomaly = result.Anomalies.Single();
+            Check(anomaly.Type == testCase.Scenario &&
+                  anomaly.Severity == testCase.Severity &&
+                  anomaly.Location == "North sector" &&
+                  anomaly.Latitude == -12.0464 &&
+                  anomaly.Longitude == -77.0428,
+                "Analysis must preserve classification and location.");
+        }
 
-    Check(result.AverageNdvi.Value == 0.55 &&
-          anomaly.Type == "PEST" &&
-          anomaly.Severity == "HIGH",
-        "Unexpected pest result.");
-});
+        var diagnosis = CreateDiagnosis(testCase.Scenario);
+        diagnosis.StartProcessing();
+        diagnosis.CompleteSimulated(
+            result.Observations,
+            result.AverageNdvi,
+            result.Anomalies,
+            requestedAt.AddMinutes(1));
+
+        Check(diagnosis.Status == EDiagnosisStatus.COMPLETED &&
+              diagnosis.Source == "SIMULATED" &&
+              diagnosis.AverageNdvi == result.AverageNdvi &&
+              diagnosis.Anomalies.Count == result.Anomalies.Count,
+            "Analysis results must complete their matching diagnosis.");
+    });
+}
 
 Test("Analysis without coordinates preserves the diagnosis results", () =>
 {
@@ -433,28 +443,6 @@ Test("Analysis respects cancellation", () =>
             new ImageAnalysisInput("HEALTHY", "North sector", null, null),
             cancellation.Token)
         .GetAwaiter().GetResult());
-});
-
-Test("Each simulated result can complete its matching diagnosis", () =>
-{
-    foreach (var scenario in new[] { "HEALTHY", "WATER_STRESS", "PEST" })
-    {
-        var diagnosis = CreateDiagnosis(scenario);
-        var result = Analyze(scenario);
-
-        diagnosis.StartProcessing();
-        diagnosis.CompleteSimulated(
-            result.Observations,
-            result.AverageNdvi,
-            result.Anomalies,
-            requestedAt.AddMinutes(1));
-
-        Check(diagnosis.Status == EDiagnosisStatus.COMPLETED &&
-              diagnosis.Source == "SIMULATED" &&
-              diagnosis.AverageNdvi == result.AverageNdvi &&
-              diagnosis.Anomalies.Count == result.Anomalies.Count,
-            $"Analysis could not complete the {scenario} diagnosis.");
-    }
 });
 
 // These checks inspect EF metadata and converters.

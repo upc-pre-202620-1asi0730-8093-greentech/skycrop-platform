@@ -19,15 +19,11 @@ using GreenTech.SkyCrop.Platform.Reports.Application.QueryServices;
 using GreenTech.SkyCrop.Platform.Reports.Domain.Repositories;
 using GreenTech.SkyCrop.Platform.Reports.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using GreenTech.SkyCrop.Platform.Reports.Resources;
+using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using Scalar.AspNetCore;
 using ProblemDetailsFactory = GreenTech.SkyCrop.Platform.Shared.Interfaces.Rest.ProblemDetails.ProblemDetailsFactory;
-using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Configuration;
-using GreenTech.SkyCrop.Platform.Diagnoses.Application.IntegrationServices;
-using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Integration;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using MySql.Data.MySqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -102,42 +98,10 @@ builder.Services.AddPlotsContext();
 
 // Diagnoses Bounded Context
 builder.Services.AddDiagnosesContext();
+builder.Services.AddDiagnosesLocalDemo(
+    builder.Configuration,
+    builder.Environment);
 
-if (builder.Configuration.GetValue<bool>("Diagnoses:LocalDemoEnabled"))
-{
-    if (!builder.Environment.IsDevelopment())
-        throw new InvalidOperationException(
-            "The diagnoses demonstration requires Development.");
-
-    var connection = builder.Configuration
-        .GetConnectionString("DefaultConnection");
-
-    if (string.IsNullOrWhiteSpace(connection))
-        throw new InvalidOperationException(
-            "Configure the demonstration database connection.");
-
-    var database = new MySqlConnectionStringBuilder(
-        Environment.ExpandEnvironmentVariables(connection));
-
-    if (database.Database != "skycrop_diagnoses_checks")
-        throw new InvalidOperationException(
-            "The demonstration requires skycrop_diagnoses_checks.");
-
-    var demoPlotId = builder.Configuration.GetValue<int>(
-        "Diagnoses:DemoPlotId");
-
-    if (demoPlotId <= 0)
-        throw new InvalidOperationException(
-            "Configure a positive Diagnoses:DemoPlotId.");
-
-    builder.Services.AddHttpContextAccessor();
-
-    builder.Services.Replace(
-        ServiceDescriptor.Scoped<IPlotAccessService>(provider =>
-            new LocalDemoPlotAccessService(
-                demoPlotId,
-                provider.GetRequiredService<IHttpContextAccessor>())));
-}
 
 // Mediator Configuration
 builder.Services.AddScoped(typeof(ICommandPipelineBehavior<>), typeof(LoggingCommandBehavior<>));

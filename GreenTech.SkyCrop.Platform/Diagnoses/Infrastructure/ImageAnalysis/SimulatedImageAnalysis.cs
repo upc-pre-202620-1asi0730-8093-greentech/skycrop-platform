@@ -4,10 +4,7 @@ using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.ValueObjects;
 
 namespace GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.ImageAnalysis;
 
-/// <summary>
-/// Produces deterministic demonstration results.
-/// Does not process real images or provide validated agronomic findings.
-/// </summary>
+// Returns predefined results; it does not inspect image contents.
 public sealed class SimulatedImageAnalysis : IImageAnalysis
 {
     public Task<ImageAnalysisResult> AnalyzeAsync(
@@ -19,65 +16,48 @@ public sealed class SimulatedImageAnalysis : IImageAnalysis
         ArgumentException.ThrowIfNullOrWhiteSpace(input.Scenario);
         ArgumentException.ThrowIfNullOrWhiteSpace(input.Location);
 
-        var scenario = input.Scenario.Trim().ToUpperInvariant();
-        var location = input.Location.Trim();
-
-        if (location.Length > 255)
+        if (input.Location.Trim().Length > 255)
             throw new ArgumentException(
-                "Location must not exceed 255 characters.",
-                nameof(input));
+                "Location must not exceed 255 characters.", nameof(input));
 
         ValidateCoordinates(input.Latitude, input.Longitude);
 
-        ImageAnalysisResult result = scenario switch
+        var result = input.Scenario.Trim().ToUpperInvariant() switch
         {
-            "HEALTHY" => new(
+            "HEALTHY" => new ImageAnalysisResult(
                 "Simulated result: healthy crop. No real images were analyzed.",
                 new Ndvi(0.8),
                 Array.Empty<Anomaly>()),
 
             "WATER_STRESS" => CreateResult(
-                "WATER_STRESS",
-                "MEDIUM",
-                0.4,
-                "Simulated water stress detected.",
-                location,
-                input.Latitude,
-                input.Longitude),
+                input, "WATER_STRESS", "MEDIUM", 0.4,
+                "Simulated water stress detected."),
 
             "PEST" => CreateResult(
-                "PEST",
-                "HIGH",
-                0.55,
-                "Simulated pest presence detected.",
-                location,
-                input.Latitude,
-                input.Longitude),
+                input, "PEST", "HIGH", 0.55,
+                "Simulated pest presence detected."),
 
             _ => throw new ArgumentException(
-                "Unknown simulation scenario.",
-                nameof(input))
+                "Unknown simulation scenario.", nameof(input))
         };
 
         return Task.FromResult(result);
     }
 
     private static ImageAnalysisResult CreateResult(
+        ImageAnalysisInput input,
         string type,
         string severity,
         double ndvi,
-        string description,
-        string location,
-        double? latitude,
-        double? longitude)
+        string description)
     {
         var anomaly = new Anomaly(
             type,
             severity,
             description,
-            location,
-            latitude,
-            longitude);
+            input.Location.Trim(),
+            input.Latitude,
+            input.Longitude);
 
         return new ImageAnalysisResult(
             $"{description} No real images were analyzed.",
@@ -85,9 +65,7 @@ public sealed class SimulatedImageAnalysis : IImageAnalysis
             Array.AsReadOnly(new[] { anomaly }));
     }
 
-    private static void ValidateCoordinates(
-        double? latitude,
-        double? longitude)
+    private static void ValidateCoordinates(double? latitude, double? longitude)
     {
         if ((latitude is null) != (longitude is null))
             throw new ArgumentException(
@@ -95,16 +73,12 @@ public sealed class SimulatedImageAnalysis : IImageAnalysis
 
         if (latitude is double lat &&
             (!double.IsFinite(lat) || Math.Abs(lat) > 90))
-        {
             throw new ArgumentException(
                 "Latitude must be between -90 and 90.");
-        }
 
         if (longitude is double lon &&
             (!double.IsFinite(lon) || Math.Abs(lon) > 180))
-        {
             throw new ArgumentException(
                 "Longitude must be between -180 and 180.");
-        }
     }
 }

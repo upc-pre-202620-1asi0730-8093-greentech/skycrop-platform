@@ -82,6 +82,39 @@ public sealed class DiagnosesController(
                     diagnosis)),
             error => DiagnosesActionResultAssembler.ToProblem(error));
     }
+    
+    /// <summary>
+    /// Retrieves georeferenced anomalies and their severity legend.
+    /// </summary>
+    [HttpGet("{id:int}/map")]
+    [EndpointSummary("Get diagnosis map data")]
+    [EndpointDescription(
+        "Returns georeferenced anomaly points and a severity legend. " +
+        "Map status is AVAILABLE, PARTIAL or UNAVAILABLE. " +
+        "Missing coordinates are never fabricated. " +
+        "An existing diagnosis without map data returns 200 with " +
+        "UNAVAILABLE status. Results retain their simulated source.")]
+    [ProducesResponseType(
+        typeof(DiagnosisMapResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetMap(
+        [Range(1, int.MaxValue,
+            ErrorMessageResourceType = typeof(DiagnosesMessages),
+            ErrorMessageResourceName = nameof(DiagnosesMessages.RangeField))]
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var result = await queries.Handle(
+            new GetDiagnosisByIdQuery(id),
+            cancellationToken);
+
+        return result.Match<IActionResult>(
+            diagnosis => Ok(
+                DiagnosisMapResourceFromEntityAssembler
+                    .ToResourceFromEntity(diagnosis)),
+            error => DiagnosesActionResultAssembler.ToProblem(error));
+    }
 
     /// <summary>
     /// Registers a diagnosis and performs simulated analysis.

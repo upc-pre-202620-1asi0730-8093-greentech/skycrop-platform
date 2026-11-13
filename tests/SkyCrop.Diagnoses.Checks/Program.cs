@@ -10,6 +10,14 @@ using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Persistence.EntityFram
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Integration;
+using System.Net;
+using Microsoft.AspNetCore.Http;
+
+if (args.Contains("--seed-demo"))
+{
+    await DiagnosisDemoSeed.RunAsync();
+    return;
+}
 
 if (args.Contains("--mysql"))
 {
@@ -709,6 +717,48 @@ Test("Access checks respect cancellation", () =>
     Throws<OperationCanceledException>(() =>
         access.GetAccessiblePlotIdsAsync(cancellation.Token)
             .GetAwaiter().GetResult());
+});
+
+Test("Local demo grants access only to its configured plot", () =>
+{
+    var http = new DefaultHttpContext();
+    http.Connection.RemoteIpAddress = IPAddress.Loopback;
+
+    var access = new LocalDemoPlotAccessService(
+        7, new HttpContextAccessor { HttpContext = http });
+
+    var allowed = access.CheckAccessAsync(7).GetAwaiter().GetResult();
+    var denied = access.CheckAccessAsync(8).GetAwaiter().GetResult();
+
+    Check(allowed.IsSuccess && denied.IsFailure,
+        "Local demo permissions must be limited to the configured plot.");
+});
+
+Test("Local demo rejects non-local requests", () =>
+{
+    var http = new DefaultHttpContext();
+    http.Connection.RemoteIpAddress = IPAddress.Parse("192.0.2.10");
+
+    var access = new LocalDemoPlotAccessService(
+        7, new HttpContextAccessor { HttpContext = http });
+
+    var detail = access.CheckAccessAsync(7).GetAwaiter().GetResult();
+    var list = access.GetAccessiblePlotIdsAsync().GetAwaiter().GetResult();
+
+    Check(detail.IsFailure && list.IsFailure &&
+          detail.DomainError.Code == "Diagnoses.LocalDemoOnly",
+        "Remote requests must not obtain demonstration permissions.");
+});
+
+Test("Local demo rejects calls without an HTTP request", () =>
+{
+    var access = new LocalDemoPlotAccessService(
+        7, new HttpContextAccessor());
+
+    var result = access.CheckAccessAsync(7).GetAwaiter().GetResult();
+
+    Check(result.IsFailure,
+        "Missing HTTP context must not grant demonstration access.");
 });
 
 Console.WriteLine();

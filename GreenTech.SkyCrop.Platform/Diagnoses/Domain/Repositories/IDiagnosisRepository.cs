@@ -17,4 +17,12 @@ public interface IDiagnosisRepository : IBaseRepository<Diagnosis>
     Task<IEnumerable<Diagnosis>> FindByPlotIdAsync(
         int plotId,
         CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Returns diagnoses belonging only to the supplied plots.
+    /// Results include anomalies, are not tracked, and are ordered
+    /// by MonitoredAt descending, then Id descending.
+    /// </summary>
+    Task<IEnumerable<Diagnosis>> FindByPlotIdsAsync(
+        IReadOnlyCollection<int> plotIds,
+        CancellationToken cancellationToken = default);
 }

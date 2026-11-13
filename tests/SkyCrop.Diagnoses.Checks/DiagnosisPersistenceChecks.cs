@@ -1,7 +1,9 @@
 ﻿using GreenTech.SkyCrop.Platform.Diagnoses.Application.IntegrationServices;
 using GreenTech.SkyCrop.Platform.Diagnoses.Application.Internal.CommandServices;
+using GreenTech.SkyCrop.Platform.Diagnoses.Application.Internal.QueryServices;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Commands;
+using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Queries;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.ValueObjects;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.ImageAnalysis;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Integration;
@@ -344,6 +346,110 @@ internal static class DiagnosisPersistenceChecks
                   invalidResult.DomainError.Code == "Diagnoses.InvalidRequest" &&
                   await context.Set<Diagnosis>().CountAsync() == countBeforeInvalid,
                 "Invalid generation requests do not create database records");
+            context.ChangeTracker.Clear();
+
+            var queries = new DiagnosisQueryService(
+                new DiagnosisRepository(context),
+                new TestPlotAccessService(plotId));
+
+            var detailResult = await queries.Handle(
+                new GetDiagnosisByIdQuery(generatedId));
+
+            Check(detailResult.IsSuccess &&
+                  detailResult.Value is { } detail &&
+                  detail.Id == generatedId &&
+                  detail.Anomalies.Count == 1,
+                "Authorized detail queries return the diagnosis and its anomalies");
+
+            var historyResult = await queries.Handle(
+                new GetDiagnosesByPlotIdQuery(plotId));
+
+            if (historyResult.IsFailure || historyResult.Value is null)
+                throw new InvalidOperationException("Authorized history query failed.");
+
+            var orderedHistory = historyResult.Value.ToArray();
+
+            Check(orderedHistory.Length == 4 &&
+                  orderedHistory.Select(item => item.Id).SequenceEqual(
+                      orderedHistory
+                          .OrderByDescending(item => item.MonitoredAt)
+                          .ThenByDescending(item => item.Id)
+                          .Select(item => item.Id)),
+                "History queries preserve monitoring order and deterministic ties");
+
+            var listResult = await queries.Handle(new GetAllDiagnosesQuery());
+
+            Check(listResult.IsSuccess &&
+                  listResult.Value is { } accessible &&
+                  accessible.Count() == 4 &&
+                  accessible.All(item => item.PlotId == plotId),
+                "General listing returns diagnoses from authorized plots");
+
+// A different existing plot with no diagnoses.
+            var emptyPlot = new AgriculturalPlot(new RegisterPlotCommand(
+                "Empty diagnosis test plot",
+                "Test operator",
+                "Potato",
+                "Loam",
+                new DateOnly(2026, 1, 1),
+                1m,
+                "Other sector",
+                null,
+                null,
+                null));
+
+            context.Add(emptyPlot);
+            await context.SaveChangesAsync();
+
+            var restrictedQueries = new DiagnosisQueryService(
+                new DiagnosisRepository(context),
+                new TestPlotAccessService(emptyPlot.Id));
+
+            var restrictedList = await restrictedQueries.Handle(
+                new GetAllDiagnosesQuery());
+
+            Check(restrictedList.IsSuccess &&
+                  restrictedList.Value is { } restrictedItems &&
+                  !restrictedItems.Any(),
+                "Listing an authorized empty plot does not expose another plot's diagnoses");
+
+            var forbiddenHistory = await restrictedQueries.Handle(
+                new GetDiagnosesByPlotIdQuery(plotId));
+
+            Check(forbiddenHistory.IsFailure &&
+                  forbiddenHistory.DomainError.Code == "Diagnoses.PlotAccessDenied",
+                "History queries reject access to another plot");
+
+            var hiddenDetail = await restrictedQueries.Handle(
+                new GetDiagnosisByIdQuery(generatedId));
+
+            var nonexistentDetail = await restrictedQueries.Handle(
+                new GetDiagnosisByIdQuery(int.MaxValue));
+
+            Check(hiddenDetail.IsFailure &&
+                  nonexistentDetail.IsFailure &&
+                  hiddenDetail.DomainError.Code == "Diagnoses.DiagnosisNotFound" &&
+                  hiddenDetail.DomainError == nonexistentDetail.DomainError,
+                "Inaccessible and nonexistent diagnoses produce the same detail error");
+
+            var emptyHistory = await restrictedQueries.Handle(
+                new GetDiagnosesByPlotIdQuery(emptyPlot.Id));
+
+            Check(emptyHistory.IsSuccess &&
+                  emptyHistory.Value is { } emptyItems &&
+                  !emptyItems.Any(),
+                "An authorized plot without diagnoses returns a successful empty history");
+
+            var unconfiguredQueries = new DiagnosisQueryService(
+                new DiagnosisRepository(context),
+                new UnconfiguredPlotAccessService());
+
+            var unavailableAccess = await unconfiguredQueries.Handle(
+                new GetAllDiagnosesQuery());
+
+            Check(unavailableAccess.IsFailure &&
+                  unavailableAccess.DomainError.Code == "Diagnoses.AccessNotConfigured",
+                "Queries preserve missing access integration errors");
         }
         finally
         {

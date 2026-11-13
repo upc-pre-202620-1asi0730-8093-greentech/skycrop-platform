@@ -30,4 +30,29 @@ public sealed class DiagnosisRepository(AppDbContext context)
             .ThenByDescending(diagnosis => diagnosis.Id)
             .ToListAsync(cancellationToken);
     }
+    public async Task<IEnumerable<Diagnosis>> FindByPlotIdsAsync(
+        IReadOnlyCollection<int> plotIds,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(plotIds);
+
+        var ids = plotIds.Distinct().ToArray();
+
+        if (ids.Any(id => id <= 0))
+            throw new ArgumentException(
+                "Plot identifiers must be positive.",
+                nameof(plotIds));
+
+        if (ids.Length == 0)
+            return Array.Empty<Diagnosis>();
+
+        return await Context.Set<Diagnosis>()
+            .AsNoTracking()
+            .Include(diagnosis => diagnosis.Anomalies)
+            .Where(diagnosis => ids.Contains(diagnosis.PlotId))
+            .OrderByDescending(diagnosis => diagnosis.MonitoredAt)
+            .ThenByDescending(diagnosis => diagnosis.Id)
+            .ToListAsync(cancellationToken);
+    }
 }

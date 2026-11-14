@@ -2,7 +2,7 @@
 
 namespace GreenTech.SkyCrop.Platform.Reports.Domain.Model.Errors;
 
-public class ReportErrors
+public static class ReportErrors
 {
     public static readonly Error ReportNotFound = Error.NotFound("Reports.ReportNotFound", "The specified report was not found.");
     

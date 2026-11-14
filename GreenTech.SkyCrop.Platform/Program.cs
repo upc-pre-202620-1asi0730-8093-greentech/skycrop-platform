@@ -18,7 +18,6 @@ using GreenTech.SkyCrop.Platform.Reports.Application.Internal.QueryServices;
 using GreenTech.SkyCrop.Platform.Reports.Application.QueryServices;
 using GreenTech.SkyCrop.Platform.Reports.Domain.Repositories;
 using GreenTech.SkyCrop.Platform.Reports.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
-using GreenTech.SkyCrop.Platform.Reports.Resources;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using Scalar.AspNetCore;
@@ -63,12 +62,11 @@ builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
         options.EnableSensitiveDataLogging();
 });
 
-builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+builder.Services.AddLocalization();
 
 // Explicitly register IStringLocalizer for ErrorMessages and Commons
 builder.Services.AddSingleton<IStringLocalizer<ErrorMessages>, StringLocalizer<ErrorMessages>>();
 builder.Services.AddSingleton<IStringLocalizer<CommonMessages>, StringLocalizer<CommonMessages>>();
-builder.Services.AddSingleton<IStringLocalizer<ReportsMessages>, StringLocalizer<ReportsMessages>>();
 
 // Register the custom ProblemDetailsFactory
 builder.Services.AddSingleton<ProblemDetailsFactory>();

@@ -1,4 +1,4 @@
-﻿using Cortex.Mediator.Notifications;
+using Cortex.Mediator.Notifications;
 
 namespace GreenTech.SkyCrop.Platform.Diagnoses.Interfaces.Events;
 
@@ -17,18 +17,3 @@ public sealed record DiagnosisGeneratedIntegrationEvent(
     double AverageNdvi,
     string Observations,
     int AnomalyCount) : INotification;
-
-public sealed record AgronomicAnomalyDetectedIntegrationEvent(
-    int DiagnosisId,
-    int PlotId,
-    int AnomalyId,
-    string Type,
-    string Severity,
-    string Source,
-    DateTimeOffset MonitoredAt) : INotification;
-
-public sealed record DiagnosisFailedIntegrationEvent(
-    int DiagnosisId,
-    int PlotId,
-    int FlightId,
-    string Reason) : INotification;

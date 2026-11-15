@@ -18,7 +18,7 @@ namespace GreenTech.SkyCrop.Platform.Crops.Interfaces.Rest;
 [Tags("Available Crop Endpoints.")]
 public class CropsController(
     ICropCommandService  cropCommandService,
-    ICropQueryServices cropQueryService,
+    ICropQueryService cropQueryService,
     IStringLocalizer<ErrorMessages> errorLocalizer,
     ProblemDetailsFactory problemDetailsFactory
     ) : ControllerBase

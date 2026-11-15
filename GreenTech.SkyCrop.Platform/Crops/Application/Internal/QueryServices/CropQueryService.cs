@@ -5,7 +5,7 @@ using GreenTech.SkyCrop.Platform.Crops.Domain.Repositories;
 
 namespace GreenTech.SkyCrop.Platform.Crops.Application.Internal.QueryServices;
 
-public class CropQueryService(ICropRepository cropRepository) : ICropQueryServices
+public class CropQueryService(ICropRepository cropRepository) : ICropQueryService
 {
     public async Task<Crop?> Handle(GetCropByIdQuery query, CancellationToken cancellationToken)
     {

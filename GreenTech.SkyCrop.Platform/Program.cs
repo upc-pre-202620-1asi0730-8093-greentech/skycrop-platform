@@ -19,6 +19,7 @@ using GreenTech.SkyCrop.Platform.Reports.Application.Internal.QueryServices;
 using GreenTech.SkyCrop.Platform.Reports.Application.QueryServices;
 using GreenTech.SkyCrop.Platform.Reports.Domain.Repositories;
 using GreenTech.SkyCrop.Platform.Reports.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
+using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using Scalar.AspNetCore;
@@ -94,6 +95,12 @@ builder.Services.AddDronesContext();
 // Plots Bounded Context
 builder.Services.AddPlotsContext();
 
+// Diagnoses Bounded Context
+builder.Services.AddDiagnosesContext();
+builder.Services.AddDiagnosesLocalDemo(
+    builder.Configuration,
+    builder.Environment);
+
 // Crops Bounded Context
 builder.Services.AddCropsContext();
 
@@ -118,7 +125,7 @@ using (var scope = app.Services.CreateScope())
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
-var supportedCultures = new[] { "en", "es" };
+var supportedCultures = new[] { "en-US", "en", "es-419", "es" };
 var localizationOptions = new RequestLocalizationOptions()
     .SetDefaultCulture(supportedCultures[0])
     .AddSupportedCultures(supportedCultures)
@@ -130,6 +137,9 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
+
+    app.MapGet("/", () => Results.Redirect("/scalar"))
+        .ExcludeFromDescription();
 }
 
 // Apply CORS Policy

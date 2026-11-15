@@ -12,6 +12,7 @@ using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFramewo
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Pipeline.Middleware.Components;
 using Cortex.Mediator.Commands;
 using Cortex.Mediator.DependencyInjection;
+using GreenTech.SkyCrop.Platform.Crops.Infrastructure.Configuration;
 using GreenTech.SkyCrop.Platform.Reports.Application.CommandServices;
 using GreenTech.SkyCrop.Platform.Reports.Application.Internal.CommandServices;
 using GreenTech.SkyCrop.Platform.Reports.Application.Internal.QueryServices;
@@ -94,6 +95,9 @@ builder.Services.AddDronesContext();
 
 // Plots Bounded Context
 builder.Services.AddPlotsContext();
+
+// Crops Bounded Context
+builder.Services.AddCropsContext();
 
 // Mediator Configuration
 builder.Services.AddScoped(typeof(ICommandPipelineBehavior<>), typeof(LoggingCommandBehavior<>));

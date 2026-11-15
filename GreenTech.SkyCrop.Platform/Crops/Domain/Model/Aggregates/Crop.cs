@@ -10,7 +10,7 @@ public partial class Crop : AggregateRoot
     public const int UrlLength = 2048;
     public const decimal HectaresArea = 999999999999.999999m;
     public const int Zero = 0;
-    public const int DecimalMax = 6;
+    public const int DecimalMax = 2;
     public const decimal MaxHumidity = 100;
     
     private Crop() {}

@@ -41,13 +41,13 @@ namespace GreenTech.SkyCrop.Platform.Migrations
                         .HasColumnName("growth_stage");
 
                     b.Property<decimal>("IdealHumidityMax")
-                        .HasPrecision(5, 6)
-                        .HasColumnType("decimal(5,6)")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)")
                         .HasColumnName("ideal_humidity_max");
 
                     b.Property<decimal>("IdealHumidityMin")
-                        .HasPrecision(5, 6)
-                        .HasColumnType("decimal(5,6)")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)")
                         .HasColumnName("ideal_humidity_min");
 
                     b.Property<string>("ImageURl")
@@ -75,8 +75,8 @@ namespace GreenTech.SkyCrop.Platform.Migrations
                         .HasColumnName("notes");
 
                     b.Property<decimal>("PlantedAreaHectares")
-                        .HasPrecision(18, 6)
-                        .HasColumnType("decimal(18,6)")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
                         .HasColumnName("planted_area_hectares");
 
                     b.Property<DateTime>("PlantingDate")

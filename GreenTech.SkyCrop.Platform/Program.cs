@@ -12,6 +12,7 @@ using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFramewo
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Pipeline.Middleware.Components;
 using Cortex.Mediator.Commands;
 using Cortex.Mediator.DependencyInjection;
+using GreenTech.SkyCrop.Platform.Crops.Infrastructure.Configuration;
 using GreenTech.SkyCrop.Platform.Reports.Application.CommandServices;
 using GreenTech.SkyCrop.Platform.Reports.Application.Internal.CommandServices;
 using GreenTech.SkyCrop.Platform.Reports.Application.Internal.QueryServices;
@@ -64,12 +65,11 @@ builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
         options.EnableSensitiveDataLogging();
 });
 
-builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+builder.Services.AddLocalization();
 
 // Explicitly register IStringLocalizer for ErrorMessages and Commons
 builder.Services.AddSingleton<IStringLocalizer<ErrorMessages>, StringLocalizer<ErrorMessages>>();
 builder.Services.AddSingleton<IStringLocalizer<CommonMessages>, StringLocalizer<CommonMessages>>();
-builder.Services.AddSingleton<IStringLocalizer<ReportsMessages>, StringLocalizer<ReportsMessages>>();
 
 // Register the custom ProblemDetailsFactory
 builder.Services.AddSingleton<ProblemDetailsFactory>();
@@ -102,6 +102,8 @@ builder.Services.AddDiagnosesLocalDemo(
     builder.Configuration,
     builder.Environment);
 
+// Crops Bounded Context
+builder.Services.AddCropsContext();
 
 // Mediator Configuration
 builder.Services.AddScoped(typeof(ICommandPipelineBehavior<>), typeof(LoggingCommandBehavior<>));

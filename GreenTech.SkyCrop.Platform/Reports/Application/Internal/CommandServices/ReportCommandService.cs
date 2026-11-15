@@ -1,6 +1,8 @@
 ﻿using GreenTech.SkyCrop.Platform.Reports.Application.CommandServices;
+using GreenTech.SkyCrop.Platform.Reports.Domain.Model;
 using GreenTech.SkyCrop.Platform.Reports.Domain.Model.Aggregates;
 using GreenTech.SkyCrop.Platform.Reports.Domain.Model.Commands;
+using GreenTech.SkyCrop.Platform.Reports.Domain.Model.Errors;
 using GreenTech.SkyCrop.Platform.Reports.Domain.Repositories;
 using GreenTech.SkyCrop.Platform.Shared.Application.Model;
 using GreenTech.SkyCrop.Platform.Shared.Domain.Repositories;
@@ -19,7 +21,16 @@ public class ReportCommandService(
     /// <inheritdoc/>
     public async Task<Result<Report>> Handle(CreateReportCommand command, CancellationToken cancellationToken)
     {
-        var report = new Report(command);
+        Report report;
+
+        try
+        {
+            report = new Report(command);
+        }
+        catch (ArgumentException)
+        {
+            return Result<Report>.Failure(ReportErrors.InvalidReportData, ReportsError.InvalidReportData);
+        }
         await reportRepository.AddAsync(report, cancellationToken);
         await unitOfWork.CompleteAsync(cancellationToken);
         return Result<Report>.Success(report);

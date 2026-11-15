@@ -1,0 +1,68 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+
+  <data name="Diagnoses.InvalidRequest" xml:space="preserve">
+    <value>The diagnosis request is invalid. Check its identifiers, images and scenario.</value>
+  </data>
+  <data name="Diagnoses.InvalidReferences" xml:space="preserve">
+    <value>Positive plot and flight identifiers are required.</value>
+  </data>
+  <data name="Diagnoses.InvalidImages" xml:space="preserve">
+    <value>Provide between 1 and 100 unique positive image identifiers.</value>
+  </data>
+  <data name="Diagnoses.InvalidPlotId" xml:space="preserve">
+    <value>A positive plot identifier is required.</value>
+  </data>
+  <data name="Diagnoses.InvalidDiagnosisId" xml:space="preserve">
+    <value>A positive diagnosis identifier is required.</value>
+  </data>
+  <data name="Diagnoses.PlotNotFound" xml:space="preserve">
+    <value>The plot was not found.</value>
+  </data>
+  <data name="Diagnoses.FlightNotFound" xml:space="preserve">
+    <value>The flight was not found for this plot.</value>
+  </data>
+  <data name="Diagnoses.FlightNotCompleted" xml:space="preserve">
+    <value>The flight must be completed before generating a diagnosis.</value>
+  </data>
+  <data name="Diagnoses.ImagesUnavailable" xml:space="preserve">
+    <value>Some images do not exist or do not belong to this flight.</value>
+  </data>
+  <data name="Diagnoses.InvalidMonitoringDate" xml:space="preserve">
+    <value>Image capture dates must be valid and not in the future.</value>
+  </data>
+  <data name="Diagnoses.DiagnosisNotFound" xml:space="preserve">
+    <value>The diagnosis was not found.</value>
+  </data>
+  <data name="Diagnoses.PlotAccessDenied" xml:space="preserve">
+    <value>Access to this plot is not allowed.</value>
+  </data>
+  <data name="Diagnoses.AccessNotConfigured" xml:space="preserve">
+    <value>The integration with plot access permissions is not configured.</value>
+  </data>
+  <data name="Diagnoses.LocalDemoOnly" xml:space="preserve">
+    <value>The demonstration is available only from the local machine.</value>
+  </data>
+
+  <data name="RequiredField" xml:space="preserve">
+    <value>The {0} field is required.</value>
+  </data>
+  <data name="RangeField" xml:space="preserve">
+    <value>The {0} field must be between {1} and {2}.</value>
+  </data>
+  <data name="MinimumItems" xml:space="preserve">
+    <value>The {0} field must contain at least {1} item.</value>
+  </data>
+  <data name="MaximumItems" xml:space="preserve">
+    <value>The {0} field must contain at most {1} items.</value>
+  </data>
+  <data name="MaximumTextLength" xml:space="preserve">
+    <value>The {0} field must not exceed {1} characters.</value>
+  </data>
+</root>

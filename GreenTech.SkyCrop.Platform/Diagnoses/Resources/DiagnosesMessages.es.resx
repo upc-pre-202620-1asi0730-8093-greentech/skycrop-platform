@@ -1,0 +1,68 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+
+  <data name="Diagnoses.InvalidRequest" xml:space="preserve">
+    <value>La solicitud de diagnóstico no es válida. Revisa sus identificadores, imágenes y escenario.</value>
+  </data>
+  <data name="Diagnoses.InvalidReferences" xml:space="preserve">
+    <value>Se requieren identificadores positivos de parcela y vuelo.</value>
+  </data>
+  <data name="Diagnoses.InvalidImages" xml:space="preserve">
+    <value>Proporciona entre 1 y 100 identificadores de imagen positivos y únicos.</value>
+  </data>
+  <data name="Diagnoses.InvalidPlotId" xml:space="preserve">
+    <value>Se requiere un identificador positivo de parcela.</value>
+  </data>
+  <data name="Diagnoses.InvalidDiagnosisId" xml:space="preserve">
+    <value>Se requiere un identificador positivo de diagnóstico.</value>
+  </data>
+  <data name="Diagnoses.PlotNotFound" xml:space="preserve">
+    <value>No se encontró la parcela.</value>
+  </data>
+  <data name="Diagnoses.FlightNotFound" xml:space="preserve">
+    <value>No se encontró el vuelo para esta parcela.</value>
+  </data>
+  <data name="Diagnoses.FlightNotCompleted" xml:space="preserve">
+    <value>El vuelo debe estar completado antes de generar un diagnóstico.</value>
+  </data>
+  <data name="Diagnoses.ImagesUnavailable" xml:space="preserve">
+    <value>Algunas imágenes no existen o no pertenecen a este vuelo.</value>
+  </data>
+  <data name="Diagnoses.InvalidMonitoringDate" xml:space="preserve">
+    <value>Las fechas de captura deben ser válidas y no estar en el futuro.</value>
+  </data>
+  <data name="Diagnoses.DiagnosisNotFound" xml:space="preserve">
+    <value>No se encontró el diagnóstico.</value>
+  </data>
+  <data name="Diagnoses.PlotAccessDenied" xml:space="preserve">
+    <value>No tienes permiso para acceder a esta parcela.</value>
+  </data>
+  <data name="Diagnoses.AccessNotConfigured" xml:space="preserve">
+    <value>La integración con los permisos de acceso a parcelas no está configurada.</value>
+  </data>
+  <data name="Diagnoses.LocalDemoOnly" xml:space="preserve">
+    <value>La demostración solo está disponible desde el equipo local.</value>
+  </data>
+
+  <data name="RequiredField" xml:space="preserve">
+    <value>El campo {0} es obligatorio.</value>
+  </data>
+  <data name="RangeField" xml:space="preserve">
+    <value>El campo {0} debe estar entre {1} y {2}.</value>
+  </data>
+  <data name="MinimumItems" xml:space="preserve">
+    <value>El campo {0} debe contener al menos {1} elemento.</value>
+  </data>
+  <data name="MaximumItems" xml:space="preserve">
+    <value>El campo {0} debe contener como máximo {1} elementos.</value>
+  </data>
+  <data name="MaximumTextLength" xml:space="preserve">
+    <value>El campo {0} no debe superar los {1} caracteres.</value>
+  </data>
+</root>

@@ -4,3 +4,30 @@ GET {{GreenTech.SkyCrop.Platform_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+GET {{GreenTech.SkyCrop.Platform_HostAddress}}/api/v1/plots
+Accept: application/json
+
+###
+
+POST {{GreenTech.SkyCrop.Platform_HostAddress}}/api/v1/plots
+Content-Type: application/json
+
+{
+  "name": "Parcela Norte",
+  "personInCharge": "Ana Perez",
+  "cropType": "Uva",
+  "soilType": "Arenoso",
+  "sowingDate": "2026-10-15",
+  "areaHectares": 12.75,
+  "location": "Ica",
+  "latitude": -14.076,
+  "longitude": -75.733,
+  "imageUrl": ""
+}
+
+###
+
+# Replace 1 with the ID returned by POST.
+GET {{GreenTech.SkyCrop.Platform_HostAddress}}/api/v1/plots/1
+Accept: application/json

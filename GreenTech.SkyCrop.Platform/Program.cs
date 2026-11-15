@@ -19,7 +19,6 @@ using GreenTech.SkyCrop.Platform.Reports.Application.Internal.QueryServices;
 using GreenTech.SkyCrop.Platform.Reports.Application.QueryServices;
 using GreenTech.SkyCrop.Platform.Reports.Domain.Repositories;
 using GreenTech.SkyCrop.Platform.Reports.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
-using GreenTech.SkyCrop.Platform.Reports.Resources;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;

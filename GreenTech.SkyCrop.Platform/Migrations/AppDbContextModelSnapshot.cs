@@ -115,6 +115,91 @@ namespace GreenTech.SkyCrop.Platform.Migrations
                     b.ToTable("crops", (string)null);
                 });
 
+            modelBuilder.Entity("GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates.Diagnosis", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    b.Property<double?>("AverageNdvi")
+                        .HasColumnType("double")
+                        .HasColumnName("average_ndvi");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("failure_reason");
+
+                    b.Property<int>("FlightId")
+                        .HasColumnType("int")
+                        .HasColumnName("flight_id");
+
+                    b.Property<DateTime?>("GeneratedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("generated_at");
+
+                    b.Property<DateTime>("MonitoredAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("monitored_at");
+
+                    b.Property<string>("Observations")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)")
+                        .HasColumnName("observations");
+
+                    b.Property<int>("PlotId")
+                        .HasColumnType("int")
+                        .HasColumnName("plot_id");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("requested_at");
+
+                    b.Property<string>("Scenario")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("scenario");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("source");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("_imageIds")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("image_ids");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_diagnoses");
+
+                    b.HasIndex("FlightId")
+                        .HasDatabaseName("i_x_diagnoses_flight_id");
+
+                    b.HasIndex("PlotId", "MonitoredAt", "Id")
+                        .HasDatabaseName("i_x_diagnoses_plot_id_monitored_at_id");
+
+                    b.ToTable("diagnoses", (string)null);
+                });
+
             modelBuilder.Entity("GreenTech.SkyCrop.Platform.Drones.Domain.Model.Aggregates.Drone", b =>
                 {
                     b.Property<int>("Id")

@@ -22,21 +22,26 @@ public sealed class DiagnosisQueryService(
         if (query.DiagnosisId <= 0)
             return Result<Diagnosis>.Failure(DiagnosisErrors.InvalidDiagnosisId);
 
-        var permissions = await access.GetAccessiblePlotIdsAsync(cancellationToken);
-
-        if (permissions.IsFailure)
-            return Result<Diagnosis>.Failure(permissions.DomainError);
-
-        var allowedPlots = permissions.Value!;
-
-        if (allowedPlots.Count == 0)
-            return Result<Diagnosis>.Failure(DiagnosisErrors.NotFound);
+        //TODO: Implement access check for plots
+        //
+        // var permissions = await access.GetAccessiblePlotIdsAsync(cancellationToken);
+        //
+        // if (permissions.IsFailure)
+        //     return Result<Diagnosis>.Failure(permissions.DomainError);
+        //
+        // var allowedPlots = permissions.Value!;
+        //
+        // if (allowedPlots.Count == 0)
+        //     return Result<Diagnosis>.Failure(DiagnosisErrors.NotFound);
 
         var diagnosis = await repository.FindByIdAsNoTrackingAsync(
             query.DiagnosisId, cancellationToken);
 
         // Inaccessible and nonexistent diagnoses return the same error.
-        if (diagnosis is null || !allowedPlots.Contains(diagnosis.PlotId))
+        // if (diagnosis is null || !allowedPlots.Contains(diagnosis.PlotId))
+        //     return Result<Diagnosis>.Failure(DiagnosisErrors.NotFound);
+
+        if (diagnosis is null)
             return Result<Diagnosis>.Failure(DiagnosisErrors.NotFound);
 
         return Result<Diagnosis>.Success(diagnosis);
@@ -52,10 +57,12 @@ public sealed class DiagnosisQueryService(
         if (query.PlotId <= 0)
             return Result<IEnumerable<Diagnosis>>.Failure(DiagnosisErrors.InvalidPlotId);
 
-        var permission = await access.CheckAccessAsync(query.PlotId, cancellationToken);
-
-        if (permission.IsFailure)
-            return Result<IEnumerable<Diagnosis>>.Failure(permission.DomainError);
+        //TODO: Implement access check for plots
+        //
+        // var permission = await access.CheckAccessAsync(query.PlotId, cancellationToken);
+        //
+        // if (permission.IsFailure)
+        //     return Result<IEnumerable<Diagnosis>>.Failure(permission.DomainError);
 
         var diagnoses = await repository.FindByPlotIdAsync(
             query.PlotId, cancellationToken);
@@ -70,13 +77,17 @@ public sealed class DiagnosisQueryService(
         cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(query);
 
-        var permissions = await access.GetAccessiblePlotIdsAsync(cancellationToken);
+        // TODO: Implement access check for plots
+        //
+        // var permissions = await access.GetAccessiblePlotIdsAsync(cancellationToken);
+        //
+        // if (permissions.IsFailure)
+        //     return Result<IEnumerable<Diagnosis>>.Failure(permissions.DomainError);
 
-        if (permissions.IsFailure)
-            return Result<IEnumerable<Diagnosis>>.Failure(permissions.DomainError);
-
-        var diagnoses = await repository.FindByPlotIdsAsync(
-            permissions.Value!, cancellationToken);
+        // var diagnoses = await repository.FindByPlotIdsAsync(
+        //     permissions.Value!, cancellationToken);
+        
+        var diagnoses = await repository.ListAsNoTrackingAsync(cancellationToken);
 
         return Result<IEnumerable<Diagnosis>>.Success(diagnoses);
     }

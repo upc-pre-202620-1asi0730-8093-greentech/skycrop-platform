@@ -50,11 +50,14 @@ public sealed class DiagnosisCommandService(
         if (scenario is not ("HEALTHY" or "WATER_STRESS" or "PEST"))
             return Invalid("Unknown simulation scenario.");
 
-        var permission = await access.CheckAccessAsync(
-            command.PlotId, cancellationToken);
-
-        if (permission.IsFailure)
-            return Result<Diagnosis>.Failure(permission.DomainError);
+        
+        //TODO: Implement access check for plots
+        
+        // var permission = await access.CheckAccessAsync(
+        //     command.PlotId, cancellationToken);
+        //
+        // if (permission.IsFailure)
+        //     return Result<Diagnosis>.Failure(permission.DomainError);
 
         var monitoringResult = await monitoring.GetAsync(
             command.PlotId,

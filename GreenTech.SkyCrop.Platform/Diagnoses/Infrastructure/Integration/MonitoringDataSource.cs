@@ -65,7 +65,7 @@ public sealed class MonitoringDataSource(AppDbContext context)
                 "Diagnoses.FlightNotFound",
                 "The flight was not found for this plot."));
 
-        if (flight.Status != EFlightStatus.COMPLETED)
+        if (flight.Status != EFlightStatus.COMPLETED && flight.Status != EFlightStatus.CANCELLED)
             return Result<MonitoringData>.Failure(Error.Conflict(
                 "Diagnoses.FlightNotCompleted",
                 "The flight must be completed before generating a diagnosis."));

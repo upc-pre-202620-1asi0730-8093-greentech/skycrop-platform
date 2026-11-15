@@ -5,7 +5,7 @@ namespace GreenTech.SkyCrop.Platform.Crops.Interfaces.Rest.Transform;
 
 public static class CropResourceFromEntityAssembler
 {
-    public static CropResource ToResourceFromEntity(Crop entity)
+    public static CropResource ToResourceFromEntity(Crop? entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
         return new CropResource(

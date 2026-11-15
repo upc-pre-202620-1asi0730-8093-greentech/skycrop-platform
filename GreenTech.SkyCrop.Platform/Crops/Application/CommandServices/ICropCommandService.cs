@@ -7,5 +7,5 @@ namespace GreenTech.SkyCrop.Platform.Crops.Application.CommandServices;
 
 public interface ICropCommandService
 {
-    Task <Result<Crop>?> Handle(CreateCropCommand command, CancellationToken cancellationToken);
+    Task <Result<Crop>> Handle(CreateCropCommand command, CancellationToken cancellationToken);
 }

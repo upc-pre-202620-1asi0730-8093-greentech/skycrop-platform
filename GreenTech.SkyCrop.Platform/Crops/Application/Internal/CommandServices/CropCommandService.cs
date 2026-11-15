@@ -13,14 +13,14 @@ public class CropCommandService(
     IUnitOfWork unitOfWork) 
     : ICropCommandService
 {
-    public async Task<Result<Crop>?> Handle(CreateCropCommand command, CancellationToken cancellationToken)
+    public async Task<Result<Crop>> Handle(CreateCropCommand command, CancellationToken cancellationToken)
     {
         Crop crop;
         try
         {
             crop = new Crop(command);
         }
-        catch (ArgumentException exception)
+        catch (ArgumentException)
         {
             return Result<Crop>.Failure(CropErrors.InvalidCropData);
         }

@@ -6,12 +6,12 @@ namespace GreenTech.SkyCrop.Platform.Crops.Domain.Model.Aggregates;
 
 public partial class Crop : AggregateRoot
 {
-    private const int TextLength = 120;
-    private const int UrlLength = 2048;
-    private const decimal HectaresArea = 999999999999.999999m;
-    private const int Zero = 0;
-    private const int DecimalMax = 6;
-    private const decimal MaxHumidity = 100;
+    public const int TextLength = 120;
+    public const int UrlLength = 2048;
+    public const decimal HectaresArea = 999999999999.999999m;
+    public const int Zero = 0;
+    public const int DecimalMax = 6;
+    public const decimal MaxHumidity = 100;
     
     private Crop() {}
     
@@ -49,7 +49,7 @@ public partial class Crop : AggregateRoot
     public string Name { get; private set; } = null!;
     public string Variety { get; private set; } = null!;
     public DateOnly PlantingDate { get; private set; }
-    public DateOnly? ExpectedHarvest { get; private set; } = null!;
+    public DateOnly ExpectedHarvest { get; private set; } 
     public CropStatus Status { get; private set; } = CropStatus.Active;
     public decimal PlantedAreaHectares { get; private set; }
     public string SowingMethod { get; private set; } = null!;

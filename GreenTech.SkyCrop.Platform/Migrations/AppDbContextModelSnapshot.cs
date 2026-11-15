@@ -19,6 +19,102 @@ namespace GreenTech.SkyCrop.Platform.Migrations
                 .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
+            modelBuilder.Entity("GreenTech.SkyCrop.Platform.Crops.Domain.Model.Aggregates.Crop", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CreatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("ExpectedHarvest")
+                        .HasColumnType("date")
+                        .HasColumnName("expected_harvest");
+
+                    b.Property<string>("GrowthStage")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("growth_stage");
+
+                    b.Property<decimal>("IdealHumidityMax")
+                        .HasPrecision(5, 6)
+                        .HasColumnType("decimal(5,6)")
+                        .HasColumnName("ideal_humidity_max");
+
+                    b.Property<decimal>("IdealHumidityMin")
+                        .HasPrecision(5, 6)
+                        .HasColumnType("decimal(5,6)")
+                        .HasColumnName("ideal_humidity_min");
+
+                    b.Property<string>("ImageURl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("varchar(2048)")
+                        .HasColumnName("image_u_rl");
+
+                    b.Property<string>("IrrigationType")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("irrigation_type");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("notes");
+
+                    b.Property<decimal>("PlantedAreaHectares")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)")
+                        .HasColumnName("planted_area_hectares");
+
+                    b.Property<DateTime>("PlantingDate")
+                        .HasColumnType("date")
+                        .HasColumnName("planting_date");
+
+                    b.Property<string>("SoilType")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("soil_type");
+
+                    b.Property<string>("SowingMethod")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("sowing_method");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("Variety")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)")
+                        .HasColumnName("variety");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_crops");
+
+                    b.ToTable("crops", (string)null);
+                });
+
             modelBuilder.Entity("GreenTech.SkyCrop.Platform.Drones.Domain.Model.Aggregates.Drone", b =>
                 {
                     b.Property<int>("Id")

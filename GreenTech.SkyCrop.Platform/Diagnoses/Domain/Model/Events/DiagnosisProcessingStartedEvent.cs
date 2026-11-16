@@ -4,5 +4,5 @@ namespace GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Events;
 
 public sealed record DiagnosisProcessingStartedEvent(
     int DiagnosisId,
-    int PlotId,
-    int FlightId) : IEvent;
+    int? PlotId,
+    int? FlightId) : IEvent;

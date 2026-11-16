@@ -1,8 +1,6 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.ValueObjects;
-using GreenTech.SkyCrop.Platform.Drones.Domain.Model.Aggregates;
-using GreenTech.SkyCrop.Platform.Plots.Domain.Model.Aggregates;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -79,7 +77,7 @@ public static class ModelBuilderExtensions
         diagnosis.Ignore(entity => entity.DomainEvents);
 
         // Preserve the image references inside the aggregate.
-        // Image existence and flight membership are checked by the application.
+        // Historical references are retained without cross-context foreign keys.
         diagnosis.Ignore(entity => entity.ImageIds);
 
         var imageIds = diagnosis.Property<List<int>>("_imageIds")
@@ -98,16 +96,6 @@ public static class ModelBuilderExtensions
             entity.MonitoredAt,
             entity.Id
         });
-
-        diagnosis.HasOne<AgriculturalPlot>()
-            .WithMany()
-            .HasForeignKey(entity => entity.PlotId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        diagnosis.HasOne<Flight>()
-            .WithMany()
-            .HasForeignKey(entity => entity.FlightId)
-            .OnDelete(DeleteBehavior.Restrict);
 
         diagnosis.OwnsMany(entity => entity.Anomalies, anomaly =>
         {

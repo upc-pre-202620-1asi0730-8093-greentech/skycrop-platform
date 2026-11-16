@@ -1,4 +1,4 @@
-﻿using GreenTech.SkyCrop.Platform.Diagnoses.Application.CommandServices;
+using GreenTech.SkyCrop.Platform.Diagnoses.Application.CommandServices;
 using GreenTech.SkyCrop.Platform.Diagnoses.Application.IntegrationServices;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Commands;
@@ -11,14 +11,12 @@ using Microsoft.Extensions.Logging;
 namespace GreenTech.SkyCrop.Platform.Diagnoses.Application.Internal.CommandServices;
 
 /// <summary>
-/// Generates a simulated diagnosis after checking access and monitoring data.
+/// Generates a standalone simulated diagnosis without external context dependencies.
 /// Persists processing state before analysis and the terminal state afterwards.
 /// </summary>
 public sealed class DiagnosisCommandService(
     IDiagnosisRepository repository,
     IUnitOfWork unitOfWork,
-    IPlotAccessService access,
-    IMonitoringDataSource monitoring,
     IImageAnalysis analysis,
     TimeProvider clock,
     ILogger<DiagnosisCommandService> logger)
@@ -30,58 +28,15 @@ public sealed class DiagnosisCommandService(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (command is null || command.ImageIds is null)
-            return Invalid("The request and image identifiers are required.");
-
-        // Copy caller-owned collections before awaiting external operations.
-        var imageIds = command.ImageIds.ToArray();
-
-        if (command.PlotId <= 0 || command.FlightId <= 0 ||
-            imageIds.Length is < 1 or > 100 ||
-            imageIds.Any(id => id <= 0) ||
-            imageIds.Distinct().Count() != imageIds.Length)
-        {
-            return Invalid(
-                "Provide positive plot and flight identifiers and 1 to 100 unique image identifiers.");
-        }
+        if (command is null)
+            return Invalid("The request is required.");
 
         var scenario = command.Scenario?.Trim().ToUpperInvariant();
 
         if (scenario is not ("HEALTHY" or "WATER_STRESS" or "PEST"))
             return Invalid("Unknown simulation scenario.");
 
-        var permission = await access.CheckAccessAsync(
-            command.PlotId, cancellationToken);
-
-        if (permission.IsFailure)
-            return Result<Diagnosis>.Failure(permission.DomainError);
-
-        var monitoringResult = await monitoring.GetAsync(
-            command.PlotId,
-            command.FlightId,
-            imageIds,
-            cancellationToken);
-
-        if (monitoringResult.IsFailure)
-            return Result<Diagnosis>.Failure(monitoringResult.DomainError);
-
-        var data = monitoringResult.Value!;
-        Diagnosis diagnosis;
-
-        try
-        {
-            diagnosis = new Diagnosis(
-                data.PlotId,
-                data.FlightId,
-                data.ImageIds,
-                scenario,
-                data.MonitoredAt,
-                clock.GetUtcNow());
-        }
-        catch (ArgumentException exception)
-        {
-            return Invalid(exception.Message);
-        }
+        var diagnosis = new Diagnosis(scenario!, clock.GetUtcNow());
 
         diagnosis.StartProcessing();
 
@@ -93,9 +48,9 @@ public sealed class DiagnosisCommandService(
             var result = await analysis.AnalyzeAsync(
                 new ImageAnalysisInput(
                     diagnosis.Scenario,
-                    data.Location,
-                    data.Latitude,
-                    data.Longitude),
+                    "Simulated analysis",
+                    null,
+                    null),
                 cancellationToken);
 
             diagnosis.CompleteSimulated(

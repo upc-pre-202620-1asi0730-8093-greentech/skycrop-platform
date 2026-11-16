@@ -1,4 +1,4 @@
-﻿using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Entities;
+using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Entities;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.ValueObjects;
 using GreenTech.SkyCrop.Platform.Shared.Domain.Model.Aggregates;
 using GreenTech.SkyCrop.Platform.Shared.Domain.Model.Entities;
@@ -18,9 +18,12 @@ public sealed class Diagnosis : AggregateRoot, IAuditableEntity
     // Required by Entity Framework Core.
     private Diagnosis() { }
 
+    public Diagnosis(string scenario, DateTimeOffset requestedAt)
+        : this(null, null, Array.Empty<int>(), scenario, requestedAt, requestedAt) { }
+
     public Diagnosis(
-        int plotId,
-        int flightId,
+        int? plotId,
+        int? flightId,
         IEnumerable<int> imageIds,
         string scenario,
         DateTimeOffset monitoredAt,
@@ -38,12 +41,12 @@ public sealed class Diagnosis : AggregateRoot, IAuditableEntity
 
         var ids = imageIds.ToArray();
 
-        if (ids.Length is < 1 or > 100 ||
+        if (ids.Length > 100 ||
             ids.Any(id => id <= 0) ||
             ids.Distinct().Count() != ids.Length)
         {
             throw new ArgumentException(
-                "Provide between 1 and 100 unique, positive image identifiers.",
+                "Provide up to 100 unique, positive image identifiers.",
                 nameof(imageIds));
         }
 
@@ -77,8 +80,8 @@ public sealed class Diagnosis : AggregateRoot, IAuditableEntity
     }
 
     public int Id { get; private set; }
-    public int PlotId { get; private set; }
-    public int FlightId { get; private set; }
+    public int? PlotId { get; private set; }
+    public int? FlightId { get; private set; }
 
     public EDiagnosisStatus Status { get; private set; }
         = EDiagnosisStatus.PENDING;

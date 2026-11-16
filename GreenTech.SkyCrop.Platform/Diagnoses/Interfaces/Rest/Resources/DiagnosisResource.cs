@@ -1,4 +1,4 @@
-﻿namespace GreenTech.SkyCrop.Platform.Diagnoses.Interfaces.Rest.Resources;
+namespace GreenTech.SkyCrop.Platform.Diagnoses.Interfaces.Rest.Resources;
 
 public sealed record AnomalyResource(
     int Id,
@@ -11,8 +11,8 @@ public sealed record AnomalyResource(
 
 public sealed record DiagnosisResource(
     int Id,
-    int PlotId,
-    int FlightId,
+    int? PlotId,
+    int? FlightId,
     IReadOnlyCollection<int> ImageIds,
     string Status,
     string Scenario,

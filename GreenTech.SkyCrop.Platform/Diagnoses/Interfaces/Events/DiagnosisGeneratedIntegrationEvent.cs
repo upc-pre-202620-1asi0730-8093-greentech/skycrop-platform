@@ -8,8 +8,8 @@ namespace GreenTech.SkyCrop.Platform.Diagnoses.Interfaces.Events;
 /// </summary>
 public sealed record DiagnosisGeneratedIntegrationEvent(
     int DiagnosisId,
-    int PlotId,
-    int FlightId,
+    int? PlotId,
+    int? FlightId,
     DateTimeOffset MonitoredAt,
     DateTimeOffset GeneratedAt,
     string Scenario,

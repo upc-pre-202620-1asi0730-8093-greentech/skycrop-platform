@@ -4,7 +4,7 @@ namespace GreenTech.SkyCrop.Platform.Diagnoses.Interfaces.Events;
 
 public sealed record AgronomicAnomalyDetectedIntegrationEvent(
     int DiagnosisId,
-    int PlotId,
+    int? PlotId,
     int AnomalyId,
     string Type,
     string Severity,

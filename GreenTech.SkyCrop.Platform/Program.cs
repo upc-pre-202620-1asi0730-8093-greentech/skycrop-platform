@@ -98,9 +98,6 @@ builder.Services.AddPlotsContext();
 
 // Diagnoses Bounded Context
 builder.Services.AddDiagnosesContext();
-builder.Services.AddDiagnosesLocalDemo(
-    builder.Configuration,
-    builder.Environment);
 
 
 // Mediator Configuration
@@ -126,7 +123,7 @@ app.UseExceptionHandler();
 
 var supportedCultures = new[] { "en-US", "en", "es-419", "es" };
 var localizationOptions = new RequestLocalizationOptions()
-    .SetDefaultCulture(supportedCultures[0])
+    .SetDefaultCulture("en")
     .AddSupportedCultures(supportedCultures)
     .AddSupportedUICultures(supportedCultures);
 

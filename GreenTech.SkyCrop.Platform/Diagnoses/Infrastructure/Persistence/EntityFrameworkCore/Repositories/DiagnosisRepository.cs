@@ -1,4 +1,4 @@
-﻿using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates;
+using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates;
 using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Repositories;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Configuration;
 using GreenTech.SkyCrop.Platform.Shared.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
@@ -13,6 +13,12 @@ namespace GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Persistence.Entity
 public sealed class DiagnosisRepository(AppDbContext context)
     : BaseRepository<Diagnosis>(context), IDiagnosisRepository
 {
+    public async Task<IEnumerable<Diagnosis>> FindAllAsNoTrackingAsync(
+        CancellationToken cancellationToken = default) =>
+        await Context.Set<Diagnosis>().AsNoTracking().Include(item => item.Anomalies)
+            .OrderByDescending(item => item.MonitoredAt).ThenByDescending(item => item.Id)
+            .ToListAsync(cancellationToken);
+
     public async Task<IEnumerable<Diagnosis>> FindByPlotIdAsync(
         int plotId,
         CancellationToken cancellationToken = default)
@@ -50,7 +56,7 @@ public sealed class DiagnosisRepository(AppDbContext context)
         return await Context.Set<Diagnosis>()
             .AsNoTracking()
             .Include(diagnosis => diagnosis.Anomalies)
-            .Where(diagnosis => ids.Contains(diagnosis.PlotId))
+            .Where(diagnosis => diagnosis.PlotId.HasValue && ids.Contains(diagnosis.PlotId.Value))
             .OrderByDescending(diagnosis => diagnosis.MonitoredAt)
             .ThenByDescending(diagnosis => diagnosis.Id)
             .ToListAsync(cancellationToken);

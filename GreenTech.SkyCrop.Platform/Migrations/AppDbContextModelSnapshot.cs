@@ -39,7 +39,7 @@ namespace GreenTech.SkyCrop.Platform.Migrations
                         .HasColumnType("varchar(1000)")
                         .HasColumnName("failure_reason");
 
-                    b.Property<int>("FlightId")
+                    b.Property<int?>("FlightId")
                         .HasColumnType("int")
                         .HasColumnName("flight_id");
 
@@ -57,7 +57,7 @@ namespace GreenTech.SkyCrop.Platform.Migrations
                         .HasColumnType("varchar(2000)")
                         .HasColumnName("observations");
 
-                    b.Property<int>("PlotId")
+                    b.Property<int?>("PlotId")
                         .HasColumnType("int")
                         .HasColumnName("plot_id");
 
@@ -94,9 +94,6 @@ namespace GreenTech.SkyCrop.Platform.Migrations
 
                     b.HasKey("Id")
                         .HasName("p_k_diagnoses");
-
-                    b.HasIndex("FlightId")
-                        .HasDatabaseName("i_x_diagnoses_flight_id");
 
                     b.HasIndex("PlotId", "MonitoredAt", "Id")
                         .HasDatabaseName("i_x_diagnoses_plot_id_monitored_at_id");
@@ -453,20 +450,6 @@ namespace GreenTech.SkyCrop.Platform.Migrations
 
             modelBuilder.Entity("GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates.Diagnosis", b =>
                 {
-                    b.HasOne("GreenTech.SkyCrop.Platform.Drones.Domain.Model.Aggregates.Flight", null)
-                        .WithMany()
-                        .HasForeignKey("FlightId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("f_k_diagnoses_flights_flight_id");
-
-                    b.HasOne("GreenTech.SkyCrop.Platform.Plots.Domain.Model.Aggregates.AgriculturalPlot", null)
-                        .WithMany()
-                        .HasForeignKey("PlotId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("f_k_diagnoses_agricultural_plots_plot_id");
-
                     b.OwnsMany("GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Entities.Anomaly", "Anomalies", b1 =>
                         {
                             b1.Property<int>("Id")

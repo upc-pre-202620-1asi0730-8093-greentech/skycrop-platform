@@ -15,7 +15,7 @@ namespace GreenTech.SkyCrop.Platform.Crops.Interfaces.Rest;
 [ApiController]
 [Route("api/v1/[controller]")]
 [Produces(MediaTypeNames.Application.Json)]
-[Tags("Available Crop Endpoints.")]
+[Tags("Crops")]
 public class CropsController(
     ICropCommandService  cropCommandService,
     ICropQueryService cropQueryService,

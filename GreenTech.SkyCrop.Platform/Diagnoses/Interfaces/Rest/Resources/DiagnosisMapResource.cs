@@ -1,4 +1,4 @@
-﻿namespace GreenTech.SkyCrop.Platform.Diagnoses.Interfaces.Rest.Resources;
+namespace GreenTech.SkyCrop.Platform.Diagnoses.Interfaces.Rest.Resources;
 
 public sealed record DiagnosisMapLegendResource(
     string Severity,
@@ -6,7 +6,7 @@ public sealed record DiagnosisMapLegendResource(
 
 public sealed record DiagnosisMapResource(
     int DiagnosisId,
-    int PlotId,
+    int? PlotId,
     string Source,
     string Status,
     string? UnavailableReason,

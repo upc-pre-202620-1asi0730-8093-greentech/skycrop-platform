@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.Net.Mime;
 using GreenTech.SkyCrop.Platform.Diagnoses.Application.CommandServices;
 using GreenTech.SkyCrop.Platform.Diagnoses.Application.QueryServices;
@@ -24,12 +24,12 @@ public sealed class DiagnosesController(
     IDiagnosisQueryService queries) : ControllerBase
 {
     /// <summary>
-    /// Lists accessible diagnoses, optionally filtered by plot.
+    /// Lists diagnoses, optionally filtered by a historical plot identifier.
     /// </summary>
     [HttpGet]
     [EndpointSummary("List diagnoses")]
     [EndpointDescription(
-        "Returns diagnoses from accessible plots, optionally filtered by plotId. " +
+        "Returns diagnoses, optionally filtered by historical plotId. " +
         "Results are ordered by monitoring date, newest first.")]
     [ProducesResponseType(
         typeof(IEnumerable<DiagnosisResource>), StatusCodes.Status200OK)]
@@ -123,7 +123,7 @@ public sealed class DiagnosesController(
     [HttpPost]
     [EndpointSummary("Generate a simulated diagnosis")]
     [EndpointDescription(
-        "Requires access to the plot and images belonging to a completed flight. " +
+        "Only scenario is required. No plot, flight or images are needed. " +
         "Supported scenarios: HEALTHY, WATER_STRESS and PEST. " +
         "A 201 response confirms registration; inspect status to determine " +
         "whether analysis completed or failed. No real images are analyzed.")]
@@ -136,9 +136,6 @@ public sealed class DiagnosesController(
         CancellationToken cancellationToken)
     {
         var command = new GenerateDiagnosisCommand(
-            resource.PlotId,
-            resource.FlightId,
-            resource.ImageIds!,
             resource.Scenario!);
 
         var result = await commands.Handle(command, cancellationToken);

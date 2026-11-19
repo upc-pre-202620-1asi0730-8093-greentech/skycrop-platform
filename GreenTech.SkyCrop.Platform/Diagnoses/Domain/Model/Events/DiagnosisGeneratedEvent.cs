@@ -4,8 +4,8 @@ namespace GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Events;
 
 public sealed record DiagnosisGeneratedEvent(
     int DiagnosisId,
-    int PlotId,
-    int FlightId,
+    int? PlotId,
+    int? FlightId,
     DateTimeOffset MonitoredAt,
     DateTimeOffset GeneratedAt,
     string Scenario,

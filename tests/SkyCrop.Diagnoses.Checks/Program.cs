@@ -193,7 +193,7 @@ Test("Diagnosis rejects invalid references and image collections", () =>
 
     foreach (var images in new[]
              {
-                 Array.Empty<int>(), new[] { 0 }, new[] { 10, 10 }, Enumerable.Range(1, 101).ToArray()
+                 new[] { 0 }, new[] { 10, 10 }, Enumerable.Range(1, 101).ToArray()
              })
     {
         Throws<ArgumentException>(() =>
@@ -668,6 +668,80 @@ Test("Local demo rejects calls without an HTTP request", () =>
     Check(result.IsFailure, "Missing HTTP context must not grant demonstration access.");
 });
 
+Test("Normal development startup resolves plot access without demo settings", () =>
+{
+    foreach (var environmentName in new[] { "Development", "Production", "Staging" })
+    {
+        var services = new ServiceCollection();
+        services.AddDbContext<AppDbContext>(options => options.UseMySQL(
+            "server=127.0.0.1;database=model_only;user=unused;password=unused;"));
+        services.AddDiagnosesContext();
+        services.AddDiagnosesDevelopmentAccess(
+            new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build(),
+            new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = environmentName });
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        using var scope = provider.CreateScope();
+        var access = scope.ServiceProvider.GetRequiredService<IPlotAccessService>();
+        Check(environmentName == "Development"
+                ? access is DevelopmentPlotAccessService
+                : access is UnconfiguredPlotAccessService,
+            "Only Development may automatically enable local plot access.");
+    }
+});
+
+Test("Development setup preserves an access service supplied by another integration", () =>
+{
+    var services = new ServiceCollection();
+    IPlotAccessService supplied = new LocalDemoPlotAccessService(7, new HttpContextAccessor());
+    services.AddSingleton(supplied);
+    services.AddDiagnosesContext();
+    var configuration = new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build();
+    services.AddDiagnosesDevelopmentAccess(configuration,
+        new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = "Development" });
+    using var provider = services.BuildServiceProvider();
+    Check(ReferenceEquals(supplied, provider.GetRequiredService<IPlotAccessService>()),
+        "Local development configuration must not override the team's access integration.");
+});
+
+Test("Development access rejects remote and missing HTTP requests before database access", () =>
+{
+    using var context = CreateModelContext();
+    foreach (var address in new IPAddress?[] { null, IPAddress.Parse("192.0.2.10") })
+    {
+        var http = new DefaultHttpContext();
+        http.Connection.RemoteIpAddress = address;
+        var access = new DevelopmentPlotAccessService(context, new HttpContextAccessor { HttpContext = http });
+        Check(access.CheckAccessAsync(1).GetAwaiter().GetResult().IsFailure &&
+              access.GetAccessiblePlotIdsAsync().GetAwaiter().GetResult().IsFailure,
+            "Development access must be limited to local requests.");
+    }
+});
+
+Test("Development access validates plot IDs and respects cancellation", () =>
+{
+    using var context = CreateModelContext();
+    var http = new DefaultHttpContext();
+    http.Connection.RemoteIpAddress = IPAddress.Loopback;
+    var access = new DevelopmentPlotAccessService(context, new HttpContextAccessor { HttpContext = http });
+    Check(access.CheckAccessAsync(0).GetAwaiter().GetResult().IsFailure, "Invalid plot IDs must be rejected.");
+    using var cancellation = new CancellationTokenSource();
+    cancellation.Cancel();
+    Throws<OperationCanceledException>(() =>
+        access.CheckAccessAsync(1, cancellation.Token).GetAwaiter().GetResult());
+    Throws<OperationCanceledException>(() =>
+        access.GetAccessiblePlotIdsAsync(cancellation.Token).GetAwaiter().GetResult());
+});
+
+Test("Standalone diagnosis has no external references", () =>
+{
+    var diagnosis = new Diagnosis("WATER_STRESS", requestedAt);
+    Check(diagnosis.PlotId is null && diagnosis.FlightId is null && diagnosis.ImageIds.Count == 0,
+        "Standalone diagnoses must not invent external references.");
+    using var model = CreateModelContext();
+    var entity = model.Model.FindEntityType(typeof(Diagnosis))!;
+    Check(!entity.GetForeignKeys().Any(), "Diagnosis must not require other context tables.");
+});
+
 // ===== MAP CHECKS =====
 Anomaly LocatedMapAnomaly() => new(
     "WATER_STRESS", "MEDIUM", "Simulated water stress.", "North sector", -12.0464, -77.0428);
@@ -906,386 +980,73 @@ internal static class DiagnosisPersistenceChecks
 
         try
         {
-            var plot = new AgriculturalPlot(new RegisterPlotCommand( "Diagnosis test plot", "Test operator",
-                "Potato", "Loam", new DateOnly(2026, 1, 1), 1m, "Test sector", -12.0464, -77.0428, null));
-
-            context.Add(plot);
-            await context.SaveChangesAsync();
-
-            var drone = new Drone(new CreateDroneCommand( "Diagnosis test drone", "Test model",
-                $"diag-{Guid.NewGuid():N}", "Test camera", 30, 100));
-
-            context.Add(drone);
-            await context.SaveChangesAsync();
-
-            drone.Update(new UpdateDroneCommand( drone.Id, Status: "AVAILABLE"));
-
-            var route = new FlightRoute(new CreateFlightRouteCommand( "Diagnosis test route", plot.Id, 30, 4,
-                new[]
-                {
-                    new RouteWaypoint(0, -12.0464, -77.0428), new RouteWaypoint(1, -12.0465, -77.0429)
-                }));
-
-            context.Add(route);
-            await context.SaveChangesAsync();
-
-            var flight = new Flight(drone, route, plot.Id);
-            context.Add(flight);
-            await context.SaveChangesAsync();
-
-            var monitoredAt = new DateTimeOffset( 2026, 10, 10, 12, 0, 0, TimeSpan.Zero);
-
-            var image = new AerialImage( flight.Id, "https://example.com/diagnosis-test.jpg",
-                monitoredAt);
-
-            context.Add(image);
-            await context.SaveChangesAsync();
-
             var repository = new DiagnosisRepository(context);
             var unitOfWork = new UnitOfWork(context);
-            var analyzer = new SimulatedImageAnalysis();
-
-            var recent = new Diagnosis( plot.Id, flight.Id, new[] { image.Id },
-                "WATER_STRESS", monitoredAt, monitoredAt.AddHours(1));
-
-            recent.StartProcessing();
-
-            var result = await analyzer.AnalyzeAsync( new ImageAnalysisInput(
-                    "WATER_STRESS", "Test sector", -12.0464, -77.0428));
-
-            recent.CompleteSimulated( result.Observations, result.AverageNdvi, result.Anomalies,
-                monitoredAt.AddHours(2));
-
-            await repository.AddAsync(recent);
-            await unitOfWork.CompleteAsync();
-
-            var diagnosisId = recent.Id;
-            var plotId = plot.Id;
-            var imageId = image.Id;
-            var flightId = flight.Id;
-
-            Check(diagnosisId > 0, "MySQL generates a diagnosis identifier");
-
-            // Force the following query to read from the database.
-            context.ChangeTracker.Clear();
-
-            var loaded = await repository.FindByIdAsNoTrackingAsync(diagnosisId)
-                         ?? throw new InvalidOperationException( "The saved diagnosis was not found.");
-
-            Check(loaded.Status == EDiagnosisStatus.COMPLETED &&
-                  loaded.AverageNdvi?.Value == 0.4 &&
-                  loaded.Source == "SIMULATED" &&
-                  loaded.ImageIds.SequenceEqual(new[] { imageId }),
-                "Diagnosis results and image references survive a database read");
-
-            var anomaly = loaded.Anomalies.Single();
-
-            Check(anomaly.Id > 0 &&
-                  anomaly.DiagnosisId == diagnosisId &&
-                  anomaly.Type == "WATER_STRESS" &&
-                  anomaly.Latitude == -12.0464 &&
-                  anomaly.Longitude == -77.0428, "Owned anomalies are saved and loaded with their diagnosis");
-
-            Check(loaded.MonitoredAt == monitoredAt &&
-                  loaded.MonitoredAt.Offset == TimeSpan.Zero &&
-                  loaded.CreatedAt.HasValue &&
-                  loaded.UpdatedAt.HasValue, "Monitoring and audit timestamps are preserved");
-
-            var older = new Diagnosis( plotId, flightId, new[] { imageId },
-                "HEALTHY", monitoredAt.AddDays(-1), monitoredAt.AddHours(3));
-
-            older.Fail("Simulated processing failure");
-
-            await repository.AddAsync(older);
-            await unitOfWork.CompleteAsync();
-
-            context.ChangeTracker.Clear();
-
-            var history = (await repository.FindByPlotIdAsync(plotId)).ToArray();
-
-            Check(history.Length == 2 &&
-                  history[0].Id == diagnosisId &&
-                  history[1].Id == older.Id, "History follows monitoring time rather than insertion order");
-
-            var failed = history[1];
-
-            Check(failed.Status == EDiagnosisStatus.FAILED &&
-                  failed.FailureReason == "Simulated processing failure" &&
-                  failed.AverageNdvi is null &&
-                  failed.GeneratedAt is null &&
-                  failed.Anomalies.Count == 0,
-                "Failed diagnoses preserve their reason without completed results");
-
-            Check(!context.ChangeTracker.Entries<Diagnosis>().Any(),
-                "History queries do not track diagnosis entities");
-            var monitoring = new MonitoringDataSource(context);
-
-            var invalidImages = await monitoring.GetAsync( plotId, flightId, Array.Empty<int>());
-
-            Check(invalidImages.IsFailure &&
-                  invalidImages.DomainError.Code == "Diagnoses.InvalidImages",
-                "Monitoring rejects empty image selections");
-
-            var plannedFlight = await monitoring.GetAsync( plotId, flightId, new[] { imageId });
-
-            Check(plannedFlight.IsFailure &&
-                  plannedFlight.DomainError.Code == "Diagnoses.FlightNotCompleted",
-                "Monitoring rejects flights that are not completed");
-
-            // Test fixture only: a completed flight, not an actual drone operation.
-            var storedFlight = await context.Set<Flight>().SingleAsync(item => item.Id == flightId);
-
-            context.Entry(storedFlight).Property(item => item.Status)
-                .CurrentValue = EFlightStatus.COMPLETED;
-
-            context.Entry(storedFlight).Property(item => item.ActiveDroneId)
-                .CurrentValue = null;
-
-            await context.SaveChangesAsync();
-            context.ChangeTracker.Clear();
-
-            var monitoringResult = await monitoring.GetAsync( plotId, flightId, new[] { imageId });
-
-            Check(monitoringResult.IsSuccess &&
-                  monitoringResult.Value is { } data &&
-                  data.PlotId == plotId &&
-                  data.FlightId == flightId &&
-                  data.ImageIds.SequenceEqual(new[] { imageId }) &&
-                  data.MonitoredAt == monitoredAt &&
-                  data.Latitude == -12.0464 &&
-                  data.Longitude == -77.0428,
-                "Monitoring returns verified references, capture date and coordinates");
-
-            var missingImage = await monitoring.GetAsync( plotId, flightId, new[] { int.MaxValue });
-
-            Check(missingImage.IsFailure &&
-                  missingImage.DomainError.Code == "Diagnoses.ImagesUnavailable",
-                "Monitoring rejects unavailable image references");
-
-            DiagnosisCommandService CreateCommandService( IPlotAccessService plotAccess,
-                IImageAnalysis imageAnalysis)
+            var queries = new DiagnosisQueryService(repository);
+            DiagnosisCommandService Service(IImageAnalysis analysis) => new(
+                repository, unitOfWork, analysis, TimeProvider.System,
+                NullLogger<DiagnosisCommandService>.Instance);
+            var service = Service(new SimulatedImageAnalysis());
+            var ids = new List<int>();
+            foreach (var scenario in new[] { "HEALTHY", "WATER_STRESS", "PEST" })
             {
-                return new DiagnosisCommandService( new DiagnosisRepository(context), new UnitOfWork(context),
-                    plotAccess, new MonitoringDataSource(context), imageAnalysis, TimeProvider.System,
-                    NullLogger<DiagnosisCommandService>.Instance);
+                recorder.Events.Clear();
+                var result = await service.Handle(new GenerateDiagnosisCommand(scenario));
+                Check(result.IsSuccess && result.Value!.Status == EDiagnosisStatus.COMPLETED,
+                    $"Standalone {scenario} completes without parcel, flight or images");
+                var id = result.Value!.Id;
+                ids.Add(id);
+                var generatedEvent = recorder.Events.OfType<DiagnosisGeneratedIntegrationEvent>().Single();
+                Check(generatedEvent.DiagnosisId == id && generatedEvent.PlotId is null && generatedEvent.FlightId is null,
+                    $"Standalone {scenario} publishes persistent IDs and null external references");
+                context.ChangeTracker.Clear();
+                var loaded = await queries.Handle(new GetDiagnosisByIdQuery(id));
+                Check(loaded.IsSuccess && loaded.Value!.PlotId is null && loaded.Value.FlightId is null &&
+                      loaded.Value.ImageIds.Count == 0 && loaded.Value.Source == "SIMULATED" &&
+                      loaded.Value.CreatedAt.HasValue && loaded.Value.GeneratedAt.HasValue,
+                    $"Standalone {scenario} survives a database read with null references");
+                Check(loaded.Value!.Anomalies.Count == (scenario == "HEALTHY" ? 0 : 1) &&
+                      loaded.Value.Anomalies.All(item => item.Id > 0 && item.Latitude is null && item.Longitude is null),
+                    $"Standalone {scenario} preserves anomalies without fabricated coordinates");
             }
-
-            var command = new GenerateDiagnosisCommand( plotId, flightId, new[] { imageId }, "WATER_STRESS");
-
-            var countBefore = await context.Set<Diagnosis>().CountAsync();
-
-            var deniedService = CreateCommandService( new TestPlotAccessService(-1),
-                new SimulatedImageAnalysis());
-
-            var deniedResult = await deniedService.Handle(command);
-
-            Check(deniedResult.IsFailure &&
-                  deniedResult.DomainError.Code == "Diagnoses.PlotAccessDenied" &&
-                  await context.Set<Diagnosis>().CountAsync() == countBefore,
-                "Generation without permission does not create a diagnosis");
-
-            var commandService = CreateCommandService( new TestPlotAccessService(plotId),
-                new SimulatedImageAnalysis());
-
-            var generatedResult = await commandService.Handle(command);
-
-            if (generatedResult.IsFailure || generatedResult.Value is null)
-                throw new InvalidOperationException(
-                    $"Generation failed: {generatedResult.DomainError.Code}");
-
-            var generatedId = generatedResult.Value.Id;
-
+            var listing = await queries.Handle(new GetAllDiagnosesQuery());
+            Check(listing.IsSuccess && ids.All(id => listing.Value!.Any(item => item.Id == id)),
+                "General listing includes standalone diagnoses");
+            var ordered = listing.Value!.ToArray();
+            Check(ordered.Select(item => item.Id).SequenceEqual(ordered.OrderByDescending(item => item.MonitoredAt)
+                    .ThenByDescending(item => item.Id).Select(item => item.Id)),
+                "Listing preserves monitoring order and deterministic ties");
+            Check(!context.ChangeTracker.Entries<Diagnosis>().Any(), "Queries do not track diagnoses");
+            var missing = await queries.Handle(new GetDiagnosisByIdQuery(int.MaxValue));
+            Check(missing.IsFailure && missing.DomainError.Code == "Diagnoses.DiagnosisNotFound",
+                "Missing diagnosis returns not found");
+            var count = await context.Set<Diagnosis>().CountAsync();
+            var invalid = await service.Handle(new GenerateDiagnosisCommand("UNKNOWN"));
+            Check(invalid.IsFailure && await context.Set<Diagnosis>().CountAsync() == count,
+                "Invalid scenarios do not persist a diagnosis");
+            var failure = await Service(new FailingImageAnalysis()).Handle(new GenerateDiagnosisCommand("PEST"));
             context.ChangeTracker.Clear();
+            var failed = await repository.FindByIdAsNoTrackingAsync(failure.Value!.Id);
+            Check(failed!.Status == EDiagnosisStatus.FAILED && failed.FailureReason == "Analysis could not be completed." &&
+                  failed.AverageNdvi is null && failed.Anomalies.Count == 0,
+                "Provider failure is persisted without exposing internal details");
 
-            var generated = await new DiagnosisRepository(context).FindByIdAsNoTrackingAsync(generatedId);
-
-            Check(generated is not null &&
-                  generated.Status == EDiagnosisStatus.COMPLETED &&
-                  generated.AverageNdvi?.Value == 0.4 &&
-                  generated.Anomalies.Count == 1 &&
-                  generated.MonitoredAt == monitoredAt,
-                "Generation service persists a complete diagnosis from verified monitoring");
-
-            var failingService = CreateCommandService( new TestPlotAccessService(plotId),
-                new FailingImageAnalysis());
-
-            var failureResult = await failingService.Handle(command);
-
-            if (failureResult.IsFailure || failureResult.Value is null)
-                throw new InvalidOperationException(
-                    "An analysis failure must preserve a queryable diagnosis.");
-
-            var failedId = failureResult.Value.Id;
-
-            context.ChangeTracker.Clear();
-
-            var savedFailure = await new DiagnosisRepository(context).FindByIdAsNoTrackingAsync(failedId);
-
-            Check(savedFailure is not null &&
-                  savedFailure.Status == EDiagnosisStatus.FAILED &&
-                  savedFailure.AverageNdvi is null &&
-                  savedFailure.Anomalies.Count == 0 &&
-                  savedFailure.FailureReason == "Analysis could not be completed.",
-                "Provider failure is persisted without leaking internal exception details");
-
-            var countBeforeInvalid = await context.Set<Diagnosis>().CountAsync();
-
-            var invalidResult = await commandService.Handle( command with { Scenario = "UNKNOWN" });
-
-            Check(invalidResult.IsFailure &&
-                  invalidResult.DomainError.Code == "Diagnoses.InvalidRequest" &&
-                  await context.Set<Diagnosis>().CountAsync() == countBeforeInvalid,
-                "Invalid generation requests do not create database records");
-            context.ChangeTracker.Clear();
-
-            var queries = new DiagnosisQueryService( new DiagnosisRepository(context),
-                new TestPlotAccessService(plotId));
-
-            var detailResult = await queries.Handle( new GetDiagnosisByIdQuery(generatedId));
-
-            Check(detailResult.IsSuccess &&
-                  detailResult.Value is { } detail &&
-                  detail.Id == generatedId &&
-                  detail.Anomalies.Count == 1,
-                "Authorized detail queries return the diagnosis and its anomalies");
-
-            var historyResult = await queries.Handle( new GetDiagnosesByPlotIdQuery(plotId));
-
-            if (historyResult.IsFailure || historyResult.Value is null)
-                throw new InvalidOperationException("Authorized history query failed.");
-
-            var orderedHistory = historyResult.Value.ToArray();
-
-            Check(orderedHistory.Length == 4 &&
-                  orderedHistory.Select(item => item.Id).SequenceEqual(
-                      orderedHistory.OrderByDescending(item => item.MonitoredAt)
-                          .ThenByDescending(item => item.Id)
-                          .Select(item => item.Id)),
-                "History queries preserve monitoring order and deterministic ties");
-
-            var listResult = await queries.Handle(new GetAllDiagnosesQuery());
-
-            Check(listResult.IsSuccess &&
-                  listResult.Value is { } accessible &&
-                  accessible.Count() == 4 &&
-                  accessible.All(item => item.PlotId == plotId),
-                "General listing returns diagnoses from authorized plots");
-
-            // A different existing plot with no diagnoses.
-            var emptyPlot = new AgriculturalPlot(new RegisterPlotCommand( "Empty diagnosis test plot",
-                "Test operator", "Potato", "Loam", new DateOnly(2026, 1, 1), 1m, "Other sector", null, null,
-                null));
-
-            context.Add(emptyPlot);
+            // Historical metadata does not require records from other contexts.
+            var old = new Diagnosis(1234567, 1234567, new[] { 1234567 }, "HEALTHY",
+                DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow);
+            old.StartProcessing();
+            old.CompleteSimulated("Historical simulated result", new Ndvi(0.8), Array.Empty<Anomaly>(), DateTimeOffset.UtcNow);
+            context.Add(old);
             await context.SaveChangesAsync();
-
-            var restrictedQueries = new DiagnosisQueryService( new DiagnosisRepository(context),
-                new TestPlotAccessService(emptyPlot.Id));
-
-            var restrictedList = await restrictedQueries.Handle( new GetAllDiagnosesQuery());
-
-            Check(restrictedList.IsSuccess &&
-                  restrictedList.Value is { } restrictedItems &&
-                  !restrictedItems.Any(),
-                "Listing an authorized empty plot does not expose another plot's diagnoses");
-
-            var forbiddenHistory = await restrictedQueries.Handle( new GetDiagnosesByPlotIdQuery(plotId));
-
-            Check(forbiddenHistory.IsFailure &&
-                  forbiddenHistory.DomainError.Code == "Diagnoses.PlotAccessDenied",
-                "History queries reject access to another plot");
-
-            var hiddenDetail = await restrictedQueries.Handle( new GetDiagnosisByIdQuery(generatedId));
-
-            var nonexistentDetail = await restrictedQueries.Handle( new GetDiagnosisByIdQuery(int.MaxValue));
-
-            Check(hiddenDetail.IsFailure &&
-                  nonexistentDetail.IsFailure &&
-                  hiddenDetail.DomainError.Code == "Diagnoses.DiagnosisNotFound" &&
-                  hiddenDetail.DomainError == nonexistentDetail.DomainError,
-                "Inaccessible and nonexistent diagnoses produce the same detail error");
-
-            var emptyHistory = await restrictedQueries.Handle( new GetDiagnosesByPlotIdQuery(emptyPlot.Id));
-
-            Check(emptyHistory.IsSuccess &&
-                  emptyHistory.Value is { } emptyItems &&
-                  !emptyItems.Any(),
-                "An authorized plot without diagnoses returns a successful empty history");
-
-            var unconfiguredQueries = new DiagnosisQueryService( new DiagnosisRepository(context),
-                new UnconfiguredPlotAccessService());
-
-            var unavailableAccess = await unconfiguredQueries.Handle( new GetAllDiagnosesQuery());
-
-            Check(unavailableAccess.IsFailure &&
-                  unavailableAccess.DomainError.Code == "Diagnoses.AccessNotConfigured",
-                "Queries preserve missing access integration errors");
+            context.ChangeTracker.Clear();
+            var history = await queries.Handle(new GetDiagnosesByPlotIdQuery(1234567));
+            Check(history.IsSuccess && history.Value!.Any(item => item.Id == old.Id),
+                "Historical plot filters do not query or require parcel records");
             var facade = new DiagnosesContextFacade(queries);
-
-            var latestSummary = await facade.GetLatestCompletedByPlotIdAsync(plotId);
-
-            Check(latestSummary.IsSuccess &&
-                  latestSummary.Value is { } summary &&
-                  summary.DiagnosisId == generatedId &&
-                  summary.MonitoredAt == monitoredAt &&
-                  summary.AverageNdvi == 0.4 &&
-                  summary.Source == "SIMULATED", "Facade returns the latest completed diagnosis summary");
-
-            // A completed diagnosis inserted later with older monitoring
-            // data must not replace the current result.
-            var lateOlderDiagnosis = new Diagnosis( plotId, flightId, new[] { imageId }, "HEALTHY",
-                monitoredAt.AddDays(-1), DateTimeOffset.UtcNow);
-
-            lateOlderDiagnosis.StartProcessing();
-            lateOlderDiagnosis.CompleteSimulated( "Older healthy monitoring result.", new Ndvi(0.8),
-                Array.Empty<Anomaly>(), DateTimeOffset.UtcNow);
-
-            context.Add(lateOlderDiagnosis);
-            await context.SaveChangesAsync();
-            context.ChangeTracker.Clear();
-
-            var afterOlderResult = await facade.GetLatestCompletedByPlotIdAsync(plotId);
-
-            Check(afterOlderResult.IsSuccess &&
-                  afterOlderResult.Value?.DiagnosisId == generatedId,
-                "Older monitoring does not replace the latest completed result");
-
-            // More recent monitoring without successful analysis
-            // must not replace completed results.
-            var unfinishedDiagnosis = new Diagnosis( plotId, flightId, new[] { imageId }, "WATER_STRESS",
-                DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow);
-
-            context.Add(unfinishedDiagnosis);
-            await context.SaveChangesAsync();
-
-            var whilePending = await facade.GetLatestCompletedByPlotIdAsync(plotId);
-
-            Check(whilePending.IsSuccess &&
-                  whilePending.Value?.DiagnosisId == generatedId,
-                "Pending diagnoses do not replace completed results");
-
-            unfinishedDiagnosis.Fail("Simulated failure.");
-            await context.SaveChangesAsync();
-
-            var afterFailure = await facade.GetLatestCompletedByPlotIdAsync(plotId);
-
-            Check(afterFailure.IsSuccess &&
-                  afterFailure.Value?.DiagnosisId == generatedId,
-                "Failed diagnoses do not replace completed results");
-
-            var restrictedFacade = new DiagnosesContextFacade(restrictedQueries);
-
-            var emptySummary = await restrictedFacade.GetLatestCompletedByPlotIdAsync(emptyPlot.Id);
-
-            Check(emptySummary.IsSuccess && emptySummary.Value is null,
-                "A plot without completed diagnoses returns an empty summary");
-
-            var deniedSummary = await restrictedFacade.GetLatestCompletedByPlotIdAsync(plotId);
-
-            Check(deniedSummary.IsFailure &&
-                  deniedSummary.DomainError.Code == "Diagnoses.PlotAccessDenied",
-                "Facade preserves plot access restrictions");
-            await DiagnosisEventChecks.RunAsync( context, recorder, plotId, flightId, imageId, Check);
+            var summary = await facade.GetLatestCompletedByPlotIdAsync(1234567);
+            Check(summary.IsSuccess && summary.Value!.DiagnosisId == old.Id,
+                "Facade preserves historical summaries");
+            await DiagnosisEventChecks.RunAsync(context, recorder, 1234567, 1234567, 1234567, Check);
         }
         finally
         {
@@ -1574,11 +1335,12 @@ internal static class DiagnosisDemoSeed
 
         Console.WriteLine("Demo fixtures committed.");
         Console.WriteLine($"Diagnoses__DemoPlotId = {plot.Id}");
-        Console.WriteLine("Use this POST body:");
+        Console.WriteLine("Legacy integration fixtures only; the standalone POST does not require them.");
+        Console.WriteLine("Use this standalone POST body:");
 
         Console.WriteLine(JsonSerializer.Serialize(new
         {
-            plotId = plot.Id, flightId = flight.Id, imageIds = new[] { image.Id }, scenario = "WATER_STRESS"
+            scenario = "WATER_STRESS"
         }, new JsonSerializerOptions { WriteIndented = true }));
     }
 }

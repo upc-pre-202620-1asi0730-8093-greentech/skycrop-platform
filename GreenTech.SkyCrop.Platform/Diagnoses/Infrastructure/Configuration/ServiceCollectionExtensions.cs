@@ -39,13 +39,25 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddDiagnosesLocalDemo(
+    public static IServiceCollection AddDiagnosesDevelopmentAccess(
         this IServiceCollection services,
         IConfiguration configuration,
         IHostEnvironment environment)
     {
-        if (!configuration.GetValue<bool>("Diagnoses:LocalDemoEnabled"))
+        // Never replace an access implementation supplied by IAM or another context.
+        var access = services.LastOrDefault(service => service.ServiceType == typeof(IPlotAccessService));
+        if (access is not null && access.ImplementationType != typeof(UnconfiguredPlotAccessService))
             return services;
+
+        if (!configuration.GetValue<bool>("Diagnoses:LocalDemoEnabled"))
+        {
+            if (environment.IsDevelopment())
+            {
+                services.AddHttpContextAccessor();
+                services.Replace(ServiceDescriptor.Scoped<IPlotAccessService, DevelopmentPlotAccessService>());
+            }
+            return services;
+        }
 
         if (!environment.IsDevelopment())
             throw new InvalidOperationException(

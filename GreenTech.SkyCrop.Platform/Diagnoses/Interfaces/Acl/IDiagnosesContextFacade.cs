@@ -1,4 +1,4 @@
-﻿using GreenTech.SkyCrop.Platform.Shared.Application.Model;
+using GreenTech.SkyCrop.Platform.Shared.Application.Model;
 
 namespace GreenTech.SkyCrop.Platform.Diagnoses.Interfaces.Acl;
 
@@ -8,7 +8,7 @@ public interface IDiagnosesContextFacade
     /// Returns the most recent completed diagnosis by monitoring time.
     /// Equal monitoring times are resolved by diagnosis ID descending.
     /// A successful null result means no completed diagnosis exists.
-    /// Access failures are preserved.
+    /// Filters historical identifiers without querying the Plots context.
     /// </summary>
     Task<Result<DiagnosisSummary?>> GetLatestCompletedByPlotIdAsync(
         int plotId,

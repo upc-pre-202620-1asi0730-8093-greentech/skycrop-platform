@@ -1,4 +1,4 @@
-﻿using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates;
+using GreenTech.SkyCrop.Platform.Diagnoses.Domain.Model.Aggregates;
 using GreenTech.SkyCrop.Platform.Shared.Domain.Repositories;
 
 namespace GreenTech.SkyCrop.Platform.Diagnoses.Domain.Repositories;
@@ -8,6 +8,7 @@ namespace GreenTech.SkyCrop.Platform.Diagnoses.Domain.Repositories;
 /// </summary>
 public interface IDiagnosisRepository : IBaseRepository<Diagnosis>
 {
+    Task<IEnumerable<Diagnosis>> FindAllAsNoTrackingAsync(CancellationToken cancellationToken = default);
     /// <summary>
     /// Returns the diagnosis history for a plot without change tracking,
     /// including anomalies and image identifiers.

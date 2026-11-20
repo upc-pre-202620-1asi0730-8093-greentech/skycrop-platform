@@ -20,6 +20,7 @@ using GreenTech.SkyCrop.Platform.Reports.Application.QueryServices;
 using GreenTech.SkyCrop.Platform.Reports.Domain.Repositories;
 using GreenTech.SkyCrop.Platform.Reports.Infrastructure.Persistence.EntityFrameworkCore.Repositories;
 using GreenTech.SkyCrop.Platform.Diagnoses.Infrastructure.Configuration;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using Scalar.AspNetCore;
@@ -119,6 +120,12 @@ using (var scope = app.Services.CreateScope())
     context.Database.Migrate();
 }
 
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
@@ -130,14 +137,11 @@ var localizationOptions = new RequestLocalizationOptions()
 
 app.UseRequestLocalization(localizationOptions);
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-    app.MapScalarApiReference();
+app.MapOpenApi();
+app.MapScalarApiReference();
 
-    app.MapGet("/", () => Results.Redirect("/scalar"))
-        .ExcludeFromDescription();
-}
+app.MapGet("/", () => Results.Redirect("/scalar"))
+    .ExcludeFromDescription();
 
 // Apply CORS Policy
 app.UseCors("AllowAllPolicy");

@@ -1,0 +1,16 @@
+﻿services:
+  api:
+    image: skycrop-platform-wa:1.0.0
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_PORT=${DATABASE_PORT}
+      - DATABASE_USER=${DATABASE_USER}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_SCHEMA=${DATABASE_SCHEMA}
+      - TokenSettings__Secret=${TokenSettings__Secret}
